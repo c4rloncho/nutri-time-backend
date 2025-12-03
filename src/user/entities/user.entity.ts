@@ -45,12 +45,6 @@ export class User {
   })
   role: UserRole;
 
-  @Column({ nullable: true })
-  avatarUrl?: string;
-
-  @Column({ nullable: true })
-  avatarPublicId?: string;
-
   // Solo si es NUTRITIONIST - bloques de horarios
   @OneToMany(() => AvailabilityBlock, block => block.nutritionist)
   availabilityBlocks: AvailabilityBlock[];

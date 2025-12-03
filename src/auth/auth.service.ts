@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { User } from 'src/user/entities/user.entity';
 import { ILike, Repository } from 'typeorm';
 import { LoginUserDto } from './dto/login-user-dto';
@@ -23,8 +22,7 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly cloudinary: CloudinaryService,
-  ) {}
+  ) { }
 
   // ---------- REGISTRO ----------
   async register(registerUser: RegisterUserDto) {
@@ -85,10 +83,7 @@ export class AuthService {
   private async generateToken(user: User) {
     const payload = { sub: user.id, name: user.fullname };
     return {
-      access_token: this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('JWT_CONSTANT'),
-        expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
-      }),
+      access_token: this.jwtService.sign(payload),
     };
   }
 
@@ -103,27 +98,8 @@ export class AuthService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    let avatarUrl = user.avatarUrl;
-    let avatarPublicId = user.avatarPublicId;
 
-    if (photo && photo.buffer) {
-      if (avatarPublicId) {
-        await this.cloudinary.deleteImage(avatarPublicId);
-      }
-
-      const upload = await this.cloudinary.uploadImage(
-        photo.buffer,
-        `user_${userId}`,
-      );
-
-      avatarUrl = upload.secure_url;
-      avatarPublicId = upload.public_id;
-    }
-
-    Object.assign(user, dto, {
-      avatarUrl,
-      avatarPublicId,
-    });
+    Object.assign(user, dto);
 
     const updated = await this.userRepository.save(user);
 
