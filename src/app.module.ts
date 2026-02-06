@@ -8,6 +8,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppointmentModule } from './appointment/appointment.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { AuthModule } from './auth/auth.module';
+import { NutritionistModule } from './nutritionist/nutritionist.module';
+import { PatientProgressModule } from './patient-progress/patient-progress.module';
 import { databaseConfigAsync } from './database/config';
 
 @Module({
@@ -19,6 +21,8 @@ import { databaseConfigAsync } from './database/config';
     AppointmentModule,
     AvailabilityModule,
     AuthModule,
+    NutritionistModule,
+    PatientProgressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
