@@ -29,6 +29,7 @@ export interface DayCalendar {
   isWorkDay: boolean;
   isFullDayBlocked: boolean;
   blockReason?: string;
+  slotDuration?: number;
   slots: SlotInfo[];
 }
 
@@ -158,6 +159,10 @@ export class AvailabilityService {
     const dayOfWeek = this.getDayOfWeek(date);
     const dateString = this.formatDateToString(date);
 
+    console.log('🔍 getAvailableSlots - Date received:', date);
+    console.log('🔍 getAvailableSlots - Day of week:', dayOfWeek);
+    console.log('🔍 getAvailableSlots - Date string:', dateString);
+
     const blocks = await this.availabilityRepository.find({
       where: {
         nutritionistId,
@@ -165,6 +170,8 @@ export class AvailabilityService {
         isActive: true,
       },
     });
+
+    console.log('🔍 getAvailableSlots - Blocks found:', blocks);
 
     if (blocks.length === 0) {
       return [];
@@ -174,7 +181,7 @@ export class AvailabilityService {
     const timeBlocks = await this.timeBlockRepository.find({
       where: {
         nutritionistId,
-        date: dateString as any,
+        date: dateString,
         isActive: true,
       },
     });
@@ -202,7 +209,7 @@ export class AvailabilityService {
     const existingAppointments = await this.appointmentRepository.find({
       where: {
         nutritionistId,
-        date: dateString as any,
+        date: dateString,
         status: In(['PENDING', 'CONFIRMED']),
       },
     });
@@ -277,11 +284,13 @@ export class AvailabilityService {
       };
     }
 
+    const slotDuration = availabilityBlocks[0]?.slotDuration || 60;
+
     // Obtener TimeBlocks para esta fecha - usar dateString para comparar correctamente
     const timeBlocks = await this.timeBlockRepository.find({
       where: {
         nutritionistId,
-        date: dateString as any,
+        date: dateString,
         isActive: true,
       },
     });
@@ -295,13 +304,13 @@ export class AvailabilityService {
         isWorkDay: true,
         isFullDayBlocked: true,
         blockReason: fullDayBlock.reason || undefined,
+        slotDuration,
         slots: [],
       };
     }
 
     // Generar todos los slots del día
     const allSlots: string[] = [];
-    const slotDuration = availabilityBlocks[0]?.slotDuration || 60;
 
     for (const block of availabilityBlocks) {
       // Normalizar formato de hora (la BD puede devolver "09:00:00")
@@ -320,7 +329,7 @@ export class AvailabilityService {
     const appointments = await this.appointmentRepository.find({
       where: {
         nutritionistId,
-        date: dateString as any,
+        date: dateString,
         status: In(['PENDING', 'CONFIRMED']),
       },
     });
@@ -359,6 +368,7 @@ export class AvailabilityService {
       dayOfWeek,
       isWorkDay: true,
       isFullDayBlocked: false,
+      slotDuration,
       slots,
     };
   }
@@ -509,13 +519,13 @@ export class AvailabilityService {
       'FRIDAY',
       'SATURDAY',
     ];
-    return days[date.getDay()];
+    return days[date.getUTCDay()]; // Usar UTC para consistencia
   }
 
   private formatDateToString(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
 

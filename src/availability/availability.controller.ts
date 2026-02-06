@@ -21,7 +21,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 @Controller('availability')
 @UseGuards(JwtAuthGuard)
 export class AvailabilityController {
-  constructor(private readonly availabilityService: AvailabilityService) {}
+  constructor(private readonly availabilityService: AvailabilityService) { }
 
   @Post()
   create(@Request() req, @Body() createDto: CreateAvailabilityBlockDto) {

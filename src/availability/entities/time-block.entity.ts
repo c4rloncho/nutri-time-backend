@@ -17,7 +17,7 @@ export class TimeBlock {
   nutritionistId: number;
 
   @Column({ type: 'date' })
-  date: Date;
+  date: string;
 
   @Column({ type: 'time', nullable: true })
   startTime: string;

@@ -11,6 +11,8 @@ import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { Appointment } from './entities/appointment.entity';
 import { AvailabilityService } from 'src/availability/availability.service';
 import { User, UserRole } from 'src/user/entities/user.entity';
+import { AvailabilityBlock } from 'src/availability/entities/availability-block.entity';
+import { AppointmentStatus } from './enums/appointment-status.enum';
 
 @Injectable()
 export class AppointmentService {
@@ -19,8 +21,10 @@ export class AppointmentService {
     private appointmentRepository: Repository<Appointment>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(AvailabilityBlock)
+    private availabilityBlockRepository: Repository<AvailabilityBlock>,
     private availabilityService: AvailabilityService,
-  ) {}
+  ) { }
 
   async create(
     patientId: number,
@@ -39,6 +43,7 @@ export class AppointmentService {
     }
 
     const appointmentDate = new Date(createDto.date);
+
     const availableSlots = await this.availabilityService.getAvailableSlots(
       createDto.nutritionistId,
       appointmentDate,
@@ -46,26 +51,34 @@ export class AppointmentService {
 
     if (!availableSlots.includes(createDto.startTime)) {
       throw new BadRequestException(
-        'Selected time slot is not available for this nutritionist',
+        `Selected time slot "${createDto.startTime}" is not available. Available slots: ${availableSlots.join(', ')}`,
       );
     }
 
-    const slotDuration = 60;
-    const endTime = this.calculateEndTime(createDto.startTime, slotDuration);
+    // Encontrar el bloque de disponibilidad correspondiente
+    const availabilityBlock = await this.findAvailabilityBlockForSlot(
+      createDto.nutritionistId,
+      appointmentDate,
+      createDto.startTime,
+    );
+
+    // Usar la duración del bloque de disponibilidad
+    const duration = availabilityBlock.slotDuration;
+    const endTime = this.calculateEndTime(createDto.startTime, duration);
 
     const conflictingAppointment = await this.appointmentRepository.findOne({
       where: [
         {
           nutritionistId: createDto.nutritionistId,
-          date: appointmentDate,
+          date: createDto.date,
           startTime: createDto.startTime,
-          status: 'CONFIRMED',
+          status: AppointmentStatus.CONFIRMED,
         },
         {
           nutritionistId: createDto.nutritionistId,
-          date: appointmentDate,
+          date: createDto.date,
           startTime: createDto.startTime,
-          status: 'PENDING',
+          status: AppointmentStatus.PENDING,
         },
       ],
     });
@@ -74,24 +87,102 @@ export class AppointmentService {
       throw new ConflictException('This time slot is already booked');
     }
 
+    // Calcular precio basado en la duración específica
+    let price: number | null = null;
+    switch (duration) {
+      case 15:
+        price = nutritionist.price15;
+        break;
+      case 30:
+        price = nutritionist.price30;
+        break;
+      case 45:
+        price = nutritionist.price45;
+        break;
+      case 60:
+        price = nutritionist.price60;
+        break;
+      default:
+        price = null;
+    }
+
+    // Convertir fecha a string YYYY-MM-DD para evitar problemas de zona horaria
+    const dateString = createDto.date; // Ya viene en formato YYYY-MM-DD del frontend
+
     const appointment = this.appointmentRepository.create({
       patientId,
       nutritionistId: createDto.nutritionistId,
-      date: appointmentDate,
+      date: dateString, // Guardar como string en vez de Date object
       startTime: createDto.startTime,
       endTime,
-      status: 'PENDING',
+      duration,
+      price,
+      status: AppointmentStatus.PENDING,
     });
 
     return await this.appointmentRepository.save(appointment);
   }
 
-  async findAll(userId: number): Promise<Appointment[]> {
-    return await this.appointmentRepository.find({
-      where: [{ patientId: userId }, { nutritionistId: userId }],
-      relations: ['patient', 'nutritionist'],
-      order: { date: 'DESC', startTime: 'DESC' },
-    });
+  async findAll(
+    userId: number,
+    page: number = 1,
+    limit: number = 10,
+    status?: AppointmentStatus,
+  ): Promise<{
+    data: Appointment[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
+    const skip = (page - 1) * limit;
+
+    // Usar QueryBuilder para ordenamiento personalizado
+    const queryBuilder = this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.patient', 'patient')
+      .leftJoinAndSelect('appointment.nutritionist', 'nutritionist')
+      .where('(appointment.patientId = :userId OR appointment.nutritionistId = :userId)', { userId });
+
+    // Aplicar filtro de status si se proporciona
+    if (status) {
+      queryBuilder.andWhere('appointment.status = :status', { status });
+    }
+
+    // Ordenar por prioridad de status, luego por fecha
+    // Prioridad: PENDING > CONFIRMED > COMPLETED > CANCELLED
+    queryBuilder
+      .addSelect(
+        `CASE
+          WHEN appointment.status = '${AppointmentStatus.PENDING}' THEN 1
+          WHEN appointment.status = '${AppointmentStatus.CONFIRMED}' THEN 2
+          WHEN appointment.status = '${AppointmentStatus.COMPLETED}' THEN 3
+          WHEN appointment.status = '${AppointmentStatus.CANCELLED}' THEN 4
+          ELSE 5
+        END`,
+        'status_priority'
+      )
+      .orderBy('status_priority', 'ASC')
+      .addOrderBy('appointment.date', 'DESC')
+      .addOrderBy('appointment.startTime', 'DESC');
+
+    // Obtener total y datos paginados
+    const [data, total] = await queryBuilder
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findByPatient(patientId: number): Promise<Appointment[]> {
@@ -123,11 +214,20 @@ export class AppointmentService {
     return appointment;
   }
 
-  async update(id: number, userId: number, updateDto: UpdateAppointmentDto): Promise<Appointment> {
+  async update(
+    id: number,
+    userId: number,
+    updateDto: UpdateAppointmentDto,
+  ): Promise<Appointment> {
     const appointment = await this.findOne(id);
 
-    if (appointment.patientId !== userId && appointment.nutritionistId !== userId) {
-      throw new BadRequestException('You can only update your own appointments');
+    if (
+      appointment.patientId !== userId &&
+      appointment.nutritionistId !== userId
+    ) {
+      throw new BadRequestException(
+        'You can only update your own appointments',
+      );
     }
 
     Object.assign(appointment, updateDto);
@@ -137,21 +237,24 @@ export class AppointmentService {
   async cancel(id: number, userId: number): Promise<Appointment> {
     const appointment = await this.findOne(id);
 
-    if (appointment.patientId !== userId && appointment.nutritionistId !== userId) {
+    if (
+      appointment.patientId !== userId &&
+      appointment.nutritionistId !== userId
+    ) {
       throw new BadRequestException(
         'You can only cancel your own appointments',
       );
     }
 
-    if (appointment.status === 'CANCELLED') {
+    if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new BadRequestException('Appointment is already cancelled');
     }
 
-    if (appointment.status === 'COMPLETED') {
+    if (appointment.status === AppointmentStatus.COMPLETED) {
       throw new BadRequestException('Cannot cancel a completed appointment');
     }
 
-    appointment.status = 'CANCELLED';
+    appointment.status = AppointmentStatus.CANCELLED;
     return await this.appointmentRepository.save(appointment);
   }
 
@@ -164,11 +267,13 @@ export class AppointmentService {
       );
     }
 
-    if (appointment.status !== 'PENDING') {
-      throw new BadRequestException('Only pending appointments can be confirmed');
+    if (appointment.status !== AppointmentStatus.PENDING) {
+      throw new BadRequestException(
+        'Only pending appointments can be confirmed',
+      );
     }
 
-    appointment.status = 'CONFIRMED';
+    appointment.status = AppointmentStatus.CONFIRMED;
     return await this.appointmentRepository.save(appointment);
   }
 
@@ -181,19 +286,26 @@ export class AppointmentService {
       );
     }
 
-    if (appointment.status !== 'CONFIRMED') {
-      throw new BadRequestException('Only confirmed appointments can be completed');
+    if (appointment.status !== AppointmentStatus.CONFIRMED) {
+      throw new BadRequestException(
+        'Only confirmed appointments can be completed',
+      );
     }
 
-    appointment.status = 'COMPLETED';
+    appointment.status = AppointmentStatus.COMPLETED;
     return await this.appointmentRepository.save(appointment);
   }
 
   async remove(id: number, userId: number): Promise<void> {
     const appointment = await this.findOne(id);
 
-    if (appointment.patientId !== userId && appointment.nutritionistId !== userId) {
-      throw new BadRequestException('You can only delete your own appointments');
+    if (
+      appointment.patientId !== userId &&
+      appointment.nutritionistId !== userId
+    ) {
+      throw new BadRequestException(
+        'You can only delete your own appointments',
+      );
     }
 
     await this.appointmentRepository.remove(appointment);
@@ -205,5 +317,68 @@ export class AppointmentService {
     const endHours = Math.floor(totalMinutes / 60);
     const endMinutes = totalMinutes % 60;
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  }
+
+  private getDayOfWeek(date: Date): string {
+    const days = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ];
+    return days[date.getUTCDay()]; // Usar UTC para consistencia
+  }
+
+  private async findAvailabilityBlockForSlot(
+    nutritionistId: number,
+    date: Date,
+    startTime: string,
+  ): Promise<AvailabilityBlock> {
+    const dayOfWeek = this.getDayOfWeek(date);
+
+    const blocks = await this.availabilityBlockRepository.find({
+      where: {
+        nutritionistId,
+        dayOfWeek,
+        isActive: true,
+      },
+    });
+
+    if (blocks.length === 0) {
+      throw new NotFoundException('No availability blocks found for this day');
+    }
+
+    // Encontrar el bloque que contiene el startTime seleccionado
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const startTimeMinutes = startHour * 60 + startMinute;
+
+    for (const block of blocks) {
+      // Normalizar formato de hora (la BD puede devolver "09:00:00")
+      const blockStart = block.startTime.substring(0, 5);
+      const blockEnd = block.endTime.substring(0, 5);
+
+      const [blockStartHour, blockStartMinute] = blockStart
+        .split(':')
+        .map(Number);
+      const [blockEndHour, blockEndMinute] = blockEnd.split(':').map(Number);
+
+      const blockStartMinutes = blockStartHour * 60 + blockStartMinute;
+      const blockEndMinutes = blockEndHour * 60 + blockEndMinute;
+
+      // Verificar si el slot está dentro del bloque
+      if (
+        startTimeMinutes >= blockStartMinutes &&
+        startTimeMinutes < blockEndMinutes
+      ) {
+        return block;
+      }
+    }
+
+    throw new BadRequestException(
+      'Selected time slot does not match any availability block',
+    );
   }
 }

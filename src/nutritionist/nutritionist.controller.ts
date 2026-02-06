@@ -3,10 +3,14 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
+  Body,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { NutritionistService } from './nutritionist.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { UpdatePricesDto } from './dto/update-prices.dto';
 
 @Controller('nutritionists')
 @UseGuards(JwtAuthGuard)
@@ -21,5 +25,10 @@ export class NutritionistController {
   @Get(':id')
   getProfile(@Param('id', ParseIntPipe) id: number) {
     return this.nutritionistService.getProfile(id);
+  }
+
+  @Patch('prices')
+  updatePrices(@Request() req, @Body() updatePricesDto: UpdatePricesDto) {
+    return this.nutritionistService.updatePrices(req.user.userId, updatePricesDto);
   }
 }

@@ -46,6 +46,19 @@ export class User {
   })
   role: UserRole;
 
+  // Solo si es NUTRITIONIST - precios por duración de cita
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price15: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price30: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price45: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price60: number | null;
+
   // Solo si es NUTRITIONIST - bloques de horarios
   @OneToMany(() => AvailabilityBlock, block => block.nutritionist)
   availabilityBlocks: AvailabilityBlock[];

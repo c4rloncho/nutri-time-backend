@@ -1,6 +1,7 @@
 // src/appointments/entities/appointment.entity.ts
 import { User } from 'src/user/entities/user.entity';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { AppointmentStatus } from '../enums/appointment-status.enum';
 
 
 @Entity('appointments')
@@ -10,7 +11,7 @@ export class Appointment {
 
     // Fecha específica: 2025-11-25
     @Column({ type: 'date' })
-    date: Date;
+    date: string;
 
     // Hora inicio: '10:00'
     @Column({ type: 'time' })
@@ -20,12 +21,20 @@ export class Appointment {
     @Column({ type: 'time' })
     endTime: string;
 
+    // Duración de la cita en minutos (15, 30, 45, 60)
+    @Column({ type: 'int' })
+    duration: number;
+
+    // Precio de la cita calculado al momento de creación
+    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+    price: number | null;
+
     @Column({
         type: 'enum',
-        enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'],
-        default: 'PENDING'
+        enum: AppointmentStatus,
+        default: AppointmentStatus.PENDING
     })
-    status: string;
+    status: AppointmentStatus;
 
     @Column()
     patientId: number;

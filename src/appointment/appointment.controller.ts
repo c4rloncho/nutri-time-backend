@@ -9,16 +9,19 @@ import {
   UseGuards,
   Request,
   ParseIntPipe,
+  Query,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { AppointmentStatus } from './enums/appointment-status.enum';
 
 @Controller('appointments')
 @UseGuards(JwtAuthGuard)
 export class AppointmentController {
-  constructor(private readonly appointmentService: AppointmentService) {}
+  constructor(private readonly appointmentService: AppointmentService) { }
 
   @Post()
   create(@Request() req, @Body() createDto: CreateAppointmentDto) {
@@ -26,8 +29,13 @@ export class AppointmentController {
   }
 
   @Get()
-  findAll(@Request() req) {
-    return this.appointmentService.findAll(req.user.id);
+  findAll(
+    @Request() req,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('status') status?: AppointmentStatus,
+  ) {
+    return this.appointmentService.findAll(req.user.id, page, limit, status);
   }
 
   @Get('my-appointments')

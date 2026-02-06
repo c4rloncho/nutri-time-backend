@@ -5,10 +5,11 @@ import { AppointmentController } from './appointment.controller';
 import { Appointment } from './entities/appointment.entity';
 import { User } from 'src/user/entities/user.entity';
 import { AvailabilityModule } from 'src/availability/availability.module';
+import { AvailabilityBlock } from 'src/availability/entities/availability-block.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Appointment, User]),
+    TypeOrmModule.forFeature([Appointment, User, AvailabilityBlock]),
     AvailabilityModule,
   ],
   controllers: [AppointmentController],

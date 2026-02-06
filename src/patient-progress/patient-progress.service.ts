@@ -10,6 +10,17 @@ import { WeightGoal } from './entities/weight-goal.entity';
 import { CreateProgressDto } from './dto/create-progress.dto';
 import { SetGoalDto } from './dto/set-goal.dto';
 
+export interface ProgressSummary {
+  currentWeight: number;
+  goalWeight: number;
+  startWeight: number;
+  remaining: number;
+  lost: number;
+  progressPercent: number;
+  monthlyChange: number | null;
+  trend: 'down' | 'up' | 'stable' | null;
+}
+
 @Injectable()
 export class PatientProgressService {
   constructor(
@@ -77,7 +88,7 @@ export class PatientProgressService {
     const previousWeight =
       entries.length > 1 ? Number(entries[1].weight) : null;
 
-    let summary: Record<string, any> | null = null;
+    let summary: ProgressSummary | null = null;
     if (goal && currentWeight !== null) {
       const goalWeight = Number(goal.goalWeight);
       const startWeight = Number(goal.startWeight);
