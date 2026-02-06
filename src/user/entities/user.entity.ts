@@ -1,5 +1,6 @@
 import { Appointment } from 'src/appointment/entities/appointment.entity';
 import { AvailabilityBlock } from 'src/availability/entities/availability-block.entity';
+import { TimeBlock } from 'src/availability/entities/time-block.entity';
 import {
   Column,
   CreateDateColumn,
@@ -48,6 +49,10 @@ export class User {
   // Solo si es NUTRITIONIST - bloques de horarios
   @OneToMany(() => AvailabilityBlock, block => block.nutritionist)
   availabilityBlocks: AvailabilityBlock[];
+
+  // Solo si es NUTRITIONIST - bloqueos de tiempo específicos
+  @OneToMany(() => TimeBlock, block => block.nutritionist)
+  timeBlocks: TimeBlock[];
 
   // Si es NUTRITIONIST - citas que debe atender
   @OneToMany(() => Appointment, appointment => appointment.nutritionist)

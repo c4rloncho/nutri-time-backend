@@ -7,15 +7,19 @@ import { ThrottlerModule, minutes } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppointmentModule } from './appointment/appointment.module';
 import { AvailabilityModule } from './availability/availability.module';
-import databaseConfig from './database/config';
+import { AuthModule } from './auth/auth.module';
+import { databaseConfigAsync } from './database/config';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
-  CacheModule.register({ isGlobal: true, ttl: 60 * 60 }),
-  ThrottlerModule.forRoot([{ ttl: minutes(1), limit: 8 }]),
-  TypeOrmModule.forRoot(databaseConfig),
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    CacheModule.register({ isGlobal: true, ttl: 60 * 60 }),
+    ThrottlerModule.forRoot([{ ttl: minutes(1), limit: 8 }]),
+    TypeOrmModule.forRootAsync(databaseConfigAsync),
     AppointmentModule,
-    AvailabilityModule,],
+    AvailabilityModule,
+    AuthModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

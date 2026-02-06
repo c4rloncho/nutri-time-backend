@@ -22,17 +22,17 @@ export class AppointmentController {
 
   @Post()
   create(@Request() req, @Body() createDto: CreateAppointmentDto) {
-    return this.appointmentService.create(req.user.userId, createDto);
+    return this.appointmentService.create(req.user.id, createDto);
   }
 
   @Get()
-  findAll() {
-    return this.appointmentService.findAll();
+  findAll(@Request() req) {
+    return this.appointmentService.findAll(req.user.id);
   }
 
   @Get('my-appointments')
   findMyAppointments(@Request() req) {
-    return this.appointmentService.findByPatient(req.user.userId);
+    return this.appointmentService.findByPatient(req.user.id);
   }
 
   @Get('nutritionist/:id')
@@ -48,28 +48,29 @@ export class AppointmentController {
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
+    @Request() req,
     @Body() updateDto: UpdateAppointmentDto,
   ) {
-    return this.appointmentService.update(id, updateDto);
+    return this.appointmentService.update(id, req.user.id, updateDto);
   }
 
   @Patch(':id/cancel')
   cancel(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.appointmentService.cancel(id, req.user.userId);
+    return this.appointmentService.cancel(id, req.user.id);
   }
 
   @Patch(':id/confirm')
   confirm(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.appointmentService.confirm(id, req.user.userId);
+    return this.appointmentService.confirm(id, req.user.id);
   }
 
   @Patch(':id/complete')
   complete(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.appointmentService.complete(id, req.user.userId);
+    return this.appointmentService.complete(id, req.user.id);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.appointmentService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.appointmentService.remove(id, req.user.id);
   }
 }

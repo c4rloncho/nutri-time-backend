@@ -54,12 +54,20 @@ export class AppointmentService {
     const endTime = this.calculateEndTime(createDto.startTime, slotDuration);
 
     const conflictingAppointment = await this.appointmentRepository.findOne({
-      where: {
-        nutritionistId: createDto.nutritionistId,
-        date: appointmentDate,
-        startTime: createDto.startTime,
-        status: 'CONFIRMED',
-      },
+      where: [
+        {
+          nutritionistId: createDto.nutritionistId,
+          date: appointmentDate,
+          startTime: createDto.startTime,
+          status: 'CONFIRMED',
+        },
+        {
+          nutritionistId: createDto.nutritionistId,
+          date: appointmentDate,
+          startTime: createDto.startTime,
+          status: 'PENDING',
+        },
+      ],
     });
 
     if (conflictingAppointment) {
@@ -78,8 +86,9 @@ export class AppointmentService {
     return await this.appointmentRepository.save(appointment);
   }
 
-  async findAll(): Promise<Appointment[]> {
+  async findAll(userId: number): Promise<Appointment[]> {
     return await this.appointmentRepository.find({
+      where: [{ patientId: userId }, { nutritionistId: userId }],
       relations: ['patient', 'nutritionist'],
       order: { date: 'DESC', startTime: 'DESC' },
     });
@@ -114,8 +123,13 @@ export class AppointmentService {
     return appointment;
   }
 
-  async update(id: number, updateDto: UpdateAppointmentDto): Promise<Appointment> {
+  async update(id: number, userId: number, updateDto: UpdateAppointmentDto): Promise<Appointment> {
     const appointment = await this.findOne(id);
+
+    if (appointment.patientId !== userId && appointment.nutritionistId !== userId) {
+      throw new BadRequestException('You can only update your own appointments');
+    }
+
     Object.assign(appointment, updateDto);
     return await this.appointmentRepository.save(appointment);
   }
@@ -175,8 +189,13 @@ export class AppointmentService {
     return await this.appointmentRepository.save(appointment);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, userId: number): Promise<void> {
     const appointment = await this.findOne(id);
+
+    if (appointment.patientId !== userId && appointment.nutritionistId !== userId) {
+      throw new BadRequestException('You can only delete your own appointments');
+    }
+
     await this.appointmentRepository.remove(appointment);
   }
 

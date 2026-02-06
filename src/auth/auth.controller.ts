@@ -54,7 +54,8 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: parseInt(process.env.COOKIE_MAX_AGE || '3600000'), // 1 hora
+      maxAge: parseInt(process.env.COOKIE_MAX_AGE || '3600000'),
+      path: '/',
     });
 
     return {
