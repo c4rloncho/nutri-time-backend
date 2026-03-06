@@ -36,7 +36,7 @@ export class NutritionistService {
       .createQueryBuilder('appointment')
       .select('COUNT(DISTINCT appointment.patientId)', 'count')
       .where('appointment.nutritionistId = :nutritionistId', { nutritionistId })
-      .where('appointment.status = :status', { status: AppointmentStatus.COMPLETED })
+      .andWhere('appointment.status = :status', { status: AppointmentStatus.COMPLETED })
       .getRawOne();
 
     return {

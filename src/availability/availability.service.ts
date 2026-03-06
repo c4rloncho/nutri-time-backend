@@ -159,9 +159,6 @@ export class AvailabilityService {
     const dayOfWeek = this.getDayOfWeek(date);
     const dateString = this.formatDateToString(date);
 
-    console.log('🔍 getAvailableSlots - Date received:', date);
-    console.log('🔍 getAvailableSlots - Day of week:', dayOfWeek);
-    console.log('🔍 getAvailableSlots - Date string:', dateString);
 
     const blocks = await this.availabilityRepository.find({
       where: {

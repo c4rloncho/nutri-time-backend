@@ -33,6 +33,15 @@ export class User {
   @Column()
   password: string;
 
+  @Column({ nullable: true, type: 'text' })
+  refreshToken: string | null;
+
+  @Column({ nullable: true, type: 'text' })
+  resetPasswordToken: string | null;
+
+  @Column({ nullable: true, type: 'timestamptz' })
+  resetPasswordExpires: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -23,11 +23,16 @@ import { AuthService } from './auth.service';
 import { LoginUserDto } from './dto/login-user-dto';
 import { RegisterUserDto } from './dto/register-user-dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 interface JwtPayload {
   id: number;
   username: string;
 }
+
+const ACCESS_COOKIE_MAX_AGE = 15 * 60 * 1000; // 15 minutos
+const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días
 
 @Controller('auth')
 export class AuthController {
@@ -48,36 +53,96 @@ export class AuthController {
     @Body() loginUserDto: LoginUserDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.login(loginUserDto);
+    const { access_token, refresh_token } = await this.authService.login(loginUserDto);
 
-    response.cookie('access_token', result.access_token, {
+    const isProd = process.env.NODE_ENV === 'production';
+
+    response.cookie('access_token', access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: parseInt(process.env.COOKIE_MAX_AGE || '3600000'),
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: ACCESS_COOKIE_MAX_AGE,
       path: '/',
     });
 
-    return {
-      success: true,
-      message: 'Login successful',
-    };
+    response.cookie('refresh_token', refresh_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: REFRESH_COOKIE_MAX_AGE,
+      path: '/auth/refresh',
+    });
+
+    return { success: true, message: 'Login successful' };
+  }
+
+  // -------- REFRESH --------
+  @Post('refresh')
+  @UseGuards(AuthGuard('jwt-refresh'))
+  async refresh(
+    @Req() req: Request & { user: { id: number; role: string; refreshToken: string } },
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { access_token, refresh_token } = await this.authService.refresh(
+      req.user.id,
+      req.user.refreshToken,
+    );
+
+    const isProd = process.env.NODE_ENV === 'production';
+
+    response.cookie('access_token', access_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: ACCESS_COOKIE_MAX_AGE,
+      path: '/',
+    });
+
+    response.cookie('refresh_token', refresh_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: REFRESH_COOKIE_MAX_AGE,
+      path: '/auth/refresh',
+    });
+
+    return { success: true, message: 'Tokens renovados' };
   }
 
   // -------- LOGOUT --------
   @Post('logout')
-  async logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie('access_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-    });
+  @UseGuards(AuthGuard('jwt'))
+  async logout(
+    @Req() req: Request & { user: { id: number } },
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    await this.authService.logout(req.user.id);
 
-    return {
-      success: true,
-      message: 'Logout successful',
-    };
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+    } as const;
+
+    response.clearCookie('access_token', { ...cookieOptions, path: '/' });
+    response.clearCookie('refresh_token', { ...cookieOptions, path: '/auth/refresh' });
+
+    return { success: true, message: 'Logout successful' };
+  }
+
+  // -------- FORGOT PASSWORD --------
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(dto.email);
+    return { success: true, message: 'Si el correo existe, recibirás un enlace para restablecer tu contraseña.' };
+  }
+
+  // -------- RESET PASSWORD --------
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
+    return { success: true, message: 'Contraseña restablecida exitosamente.' };
   }
 
   // -------- PERFIL ACTUAL --------
@@ -94,7 +159,7 @@ export class AuthController {
   @UseInterceptors(
     FileInterceptor('photo', {
       storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         const allowed = /\/(jpg|jpeg|png|webp|gif)$/i.test(file.mimetype);
         if (allowed) return cb(null, true);

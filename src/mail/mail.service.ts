@@ -44,6 +44,24 @@ export class MailService {
     });
   }
 
+  async sendPasswordReset(data: { fullname: string; email: string; resetUrl: string }) {
+    await this.send({
+      to: data.email,
+      subject: '🔑 Restablecer contraseña - Nutri Time',
+      html: this.appointmentTemplate({
+        title: 'Restablecer tu contraseña',
+        greeting: `Hola ${data.fullname},`,
+        body: `Recibimos una solicitud para restablecer la contraseña de tu cuenta. Haz clic en el botón de abajo para crear una nueva contraseña. Este enlace expira en <strong>1 hora</strong>.
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${data.resetUrl}" style="background:#16a34a;color:white;padding:14px 28px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:16px;">Restablecer contraseña</a>
+          </div>
+          <p style="color:#6b7280;font-size:13px;">O copia y pega este enlace en tu navegador:<br><a href="${data.resetUrl}" style="color:#16a34a;word-break:break-all;">${data.resetUrl}</a></p>`,
+        details: '',
+        footer: 'Si no solicitaste este cambio, puedes ignorar este correo. Tu contraseña no será modificada.',
+      }),
+    });
+  }
+
   async sendAppointmentReminder(data: AppointmentEmailData) {
     const priceText = data.price ? `$${data.price}` : 'Por definir';
 
