@@ -13,6 +13,7 @@ import { AvailabilityService } from 'src/availability/availability.service';
 import { User, UserRole } from 'src/user/entities/user.entity';
 import { AvailabilityBlock } from 'src/availability/entities/availability-block.entity';
 import { AppointmentStatus } from './enums/appointment-status.enum';
+import { MailService, AppointmentEmailData } from 'src/mail/mail.service';
 
 @Injectable()
 export class AppointmentService {
@@ -24,6 +25,7 @@ export class AppointmentService {
     @InjectRepository(AvailabilityBlock)
     private availabilityBlockRepository: Repository<AvailabilityBlock>,
     private availabilityService: AvailabilityService,
+    private mailService: MailService,
   ) { }
 
   async create(
@@ -120,7 +122,14 @@ export class AppointmentService {
       status: AppointmentStatus.PENDING,
     });
 
-    return await this.appointmentRepository.save(appointment);
+    const saved = await this.appointmentRepository.save(appointment);
+
+    const patient = await this.userRepository.findOne({ where: { id: patientId } });
+    this.mailService.sendAppointmentCreated(
+      this.buildEmailData(patient!, nutritionist, saved),
+    );
+
+    return saved;
   }
 
   async findAll(
@@ -255,7 +264,15 @@ export class AppointmentService {
     }
 
     appointment.status = AppointmentStatus.CANCELLED;
-    return await this.appointmentRepository.save(appointment);
+    const saved = await this.appointmentRepository.save(appointment);
+
+    const cancelledBy = appointment.patientId === userId ? 'patient' : 'nutritionist';
+    this.mailService.sendAppointmentCancelled(
+      this.buildEmailData(saved.patient, saved.nutritionist, saved),
+      cancelledBy,
+    );
+
+    return saved;
   }
 
   async confirm(id: number, nutritionistId: number): Promise<Appointment> {
@@ -274,7 +291,13 @@ export class AppointmentService {
     }
 
     appointment.status = AppointmentStatus.CONFIRMED;
-    return await this.appointmentRepository.save(appointment);
+    const saved = await this.appointmentRepository.save(appointment);
+
+    this.mailService.sendAppointmentConfirmed(
+      this.buildEmailData(saved.patient, saved.nutritionist, saved),
+    );
+
+    return saved;
   }
 
   async complete(id: number, nutritionistId: number): Promise<Appointment> {
@@ -293,7 +316,13 @@ export class AppointmentService {
     }
 
     appointment.status = AppointmentStatus.COMPLETED;
-    return await this.appointmentRepository.save(appointment);
+    const saved = await this.appointmentRepository.save(appointment);
+
+    this.mailService.sendAppointmentCompleted(
+      this.buildEmailData(saved.patient, saved.nutritionist, saved),
+    );
+
+    return saved;
   }
 
   async remove(id: number, userId: number): Promise<void> {
@@ -317,6 +346,20 @@ export class AppointmentService {
     const endHours = Math.floor(totalMinutes / 60);
     const endMinutes = totalMinutes % 60;
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  }
+
+  private buildEmailData(patient: User, nutritionist: User, appointment: Appointment): AppointmentEmailData {
+    return {
+      patientName: patient.fullname,
+      patientEmail: patient.email,
+      nutritionistName: nutritionist.fullname,
+      nutritionistEmail: nutritionist.email,
+      date: appointment.date,
+      startTime: appointment.startTime.substring(0, 5),
+      endTime: appointment.endTime.substring(0, 5),
+      duration: appointment.duration,
+      price: appointment.price,
+    };
   }
 
   private getDayOfWeek(date: Date): string {

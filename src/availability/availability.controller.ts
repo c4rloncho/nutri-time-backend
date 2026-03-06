@@ -17,6 +17,8 @@ import { UpdateAvailabilityBlockDto } from './dto/update-availability-block.dto'
 import { CreateTimeBlockDto } from './dto/create-time-block.dto';
 import { UpdateTimeBlockDto } from './dto/update-time-block.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { UserRole } from 'src/user/entities/user.entity';
 
 @Controller('availability')
 @UseGuards(JwtAuthGuard)
@@ -24,11 +26,13 @@ export class AvailabilityController {
   constructor(private readonly availabilityService: AvailabilityService) { }
 
   @Post()
+  @Roles(UserRole.NUTRITIONIST)
   create(@Request() req, @Body() createDto: CreateAvailabilityBlockDto) {
     return this.availabilityService.create(req.user.id, createDto);
   }
 
   @Get('my-blocks')
+  @Roles(UserRole.NUTRITIONIST)
   findMyBlocks(@Request() req) {
     return this.availabilityService.findAllByNutritionist(req.user.id);
   }
@@ -68,6 +72,7 @@ export class AvailabilityController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.NUTRITIONIST)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
@@ -77,6 +82,7 @@ export class AvailabilityController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.NUTRITIONIST)
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.availabilityService.remove(id, req.user.id);
   }
@@ -84,11 +90,13 @@ export class AvailabilityController {
   // ========== TIME BLOCK ENDPOINTS ==========
 
   @Post('time-blocks')
+  @Roles(UserRole.NUTRITIONIST)
   createTimeBlock(@Request() req, @Body() createDto: CreateTimeBlockDto) {
     return this.availabilityService.createTimeBlock(req.user.id, createDto);
   }
 
   @Get('time-blocks/my-blocks')
+  @Roles(UserRole.NUTRITIONIST)
   findMyTimeBlocks(@Request() req) {
     return this.availabilityService.findAllTimeBlocksByNutritionist(req.user.id);
   }
@@ -104,6 +112,7 @@ export class AvailabilityController {
   }
 
   @Patch('time-blocks/:id')
+  @Roles(UserRole.NUTRITIONIST)
   updateTimeBlock(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
@@ -113,6 +122,7 @@ export class AvailabilityController {
   }
 
   @Delete('time-blocks/:id')
+  @Roles(UserRole.NUTRITIONIST)
   removeTimeBlock(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.availabilityService.removeTimeBlock(id, req.user.id);
   }

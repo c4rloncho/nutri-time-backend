@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { NutritionistService } from './nutritionist.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { UserRole } from 'src/user/entities/user.entity';
 import { UpdatePricesDto } from './dto/update-prices.dto';
 
 @Controller('nutritionists')
@@ -28,7 +30,8 @@ export class NutritionistController {
   }
 
   @Patch('prices')
+  @Roles(UserRole.NUTRITIONIST)
   updatePrices(@Request() req, @Body() updatePricesDto: UpdatePricesDto) {
-    return this.nutritionistService.updatePrices(req.user.userId, updatePricesDto);
+    return this.nutritionistService.updatePrices(req.user.id, updatePricesDto);
   }
 }

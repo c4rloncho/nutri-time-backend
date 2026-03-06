@@ -16,6 +16,8 @@ import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { UserRole } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from './enums/appointment-status.enum';
 
 @Controller('appointments')
@@ -24,11 +26,13 @@ export class AppointmentController {
   constructor(private readonly appointmentService: AppointmentService) { }
 
   @Post()
+  @Roles(UserRole.PATIENT)
   create(@Request() req, @Body() createDto: CreateAppointmentDto) {
     return this.appointmentService.create(req.user.id, createDto);
   }
 
   @Get()
+  @Roles(UserRole.NUTRITIONIST)
   findAll(
     @Request() req,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -39,6 +43,7 @@ export class AppointmentController {
   }
 
   @Get('my-appointments')
+  @Roles(UserRole.PATIENT)
   findMyAppointments(@Request() req) {
     return this.appointmentService.findByPatient(req.user.id);
   }
@@ -68,11 +73,13 @@ export class AppointmentController {
   }
 
   @Patch(':id/confirm')
+  @Roles(UserRole.NUTRITIONIST)
   confirm(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.appointmentService.confirm(id, req.user.id);
   }
 
   @Patch(':id/complete')
+  @Roles(UserRole.NUTRITIONIST)
   complete(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.appointmentService.complete(id, req.user.id);
   }
