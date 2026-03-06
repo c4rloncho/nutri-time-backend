@@ -7,6 +7,7 @@ import { User } from 'src/user/entities/user.entity';
 import { AvailabilityModule } from 'src/availability/availability.module';
 import { AvailabilityBlock } from 'src/availability/entities/availability-block.entity';
 import { MailModule } from 'src/mail/mail.module';
+import { AppointmentReminderService } from './appointment-reminder.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { MailModule } from 'src/mail/mail.module';
     MailModule,
   ],
   controllers: [AppointmentController],
-  providers: [AppointmentService],
+  providers: [AppointmentService, AppointmentReminderService],
   exports: [AppointmentService],
 })
 export class AppointmentModule {}

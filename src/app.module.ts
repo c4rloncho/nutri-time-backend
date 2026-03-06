@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { NutritionistModule } from './nutritionist/nutritionist.module';
 import { PatientProgressModule } from './patient-progress/patient-progress.module';
 import { databaseConfigAsync } from './database/config';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { databaseConfigAsync } from './database/config';
     CacheModule.register({ isGlobal: true, ttl: 60 * 60 }),
     ThrottlerModule.forRoot([{ ttl: minutes(1), limit: 8 }]),
     TypeOrmModule.forRootAsync(databaseConfigAsync),
+    ScheduleModule.forRoot(),
     AppointmentModule,
     AvailabilityModule,
     AuthModule,

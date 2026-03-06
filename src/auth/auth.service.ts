@@ -14,6 +14,7 @@ import { ILike, Repository } from 'typeorm';
 import { LoginUserDto } from './dto/login-user-dto';
 import { RegisterUserDto } from './dto/register-user-dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +23,7 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) { }
 
   // ---------- REGISTRO ----------
@@ -50,6 +52,8 @@ export class AuthService {
     });
 
     await this.userRepository.save(newUser);
+
+    this.mailService.sendWelcome({ fullname, email: email.toLowerCase() });
 
     return {
       success: true,

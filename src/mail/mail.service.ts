@@ -14,6 +14,11 @@ export interface AppointmentEmailData {
   price: number | null;
 }
 
+export interface WelcomeEmailData {
+  fullname: string;
+  email: string;
+}
+
 @Injectable()
 export class MailService {
   private readonly resend: Resend;
@@ -23,6 +28,48 @@ export class MailService {
   constructor(private readonly configService: ConfigService) {
     this.resend = new Resend(this.configService.get<string>('RESEND_API_KEY'));
     this.from = this.configService.get<string>('MAIL_FROM') ?? 'onboarding@resend.dev';
+  }
+
+  async sendWelcome(data: WelcomeEmailData) {
+    await this.send({
+      to: data.email,
+      subject: '¡Bienvenido a Nutri Time! 🥗',
+      html: this.appointmentTemplate({
+        title: '¡Bienvenido a Nutri Time!',
+        greeting: `Hola ${data.fullname},`,
+        body: 'Tu cuenta ha sido creada exitosamente. Ya puedes acceder a la plataforma y agendar citas con nuestros nutricionistas.',
+        details: '',
+        footer: 'Si no creaste esta cuenta, ignora este correo.',
+      }),
+    });
+  }
+
+  async sendAppointmentReminder(data: AppointmentEmailData) {
+    const priceText = data.price ? `$${data.price}` : 'Por definir';
+
+    await this.send({
+      to: data.patientEmail,
+      subject: '⏰ Recordatorio de cita - Nutri Time',
+      html: this.appointmentTemplate({
+        title: 'Recordatorio: tienes una cita mañana',
+        greeting: `Hola ${data.patientName},`,
+        body: `Te recordamos que mañana tienes una cita con <strong>${data.nutritionistName}</strong>.`,
+        details: this.detailsTable(data, priceText),
+        footer: 'Si necesitas cancelar, hazlo con anticipación desde la plataforma.',
+      }),
+    });
+
+    await this.send({
+      to: data.nutritionistEmail,
+      subject: '⏰ Recordatorio de cita - Nutri Time',
+      html: this.appointmentTemplate({
+        title: 'Recordatorio: tienes una cita mañana',
+        greeting: `Hola ${data.nutritionistName},`,
+        body: `Te recordamos que mañana tienes una cita con <strong>${data.patientName}</strong>.`,
+        details: this.detailsTable(data, priceText),
+        footer: 'Ingresa a Nutri Time para ver los detalles.',
+      }),
+    });
   }
 
   async sendAppointmentCreated(data: AppointmentEmailData) {
@@ -114,10 +161,15 @@ export class MailService {
   }
 
   private async send({ to, subject, html }: { to: string; subject: string; html: string }) {
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const recipient = isProduction
+      ? to
+      : (this.configService.get<string>('TEST_EMAIL') ?? to);
+
     try {
-      await this.resend.emails.send({ from: this.from, to, subject, html });
+      await this.resend.emails.send({ from: this.from, to: recipient, subject, html });
     } catch (error) {
-      this.logger.error(`Failed to send email to ${to}: ${error.message}`);
+      this.logger.error(`Failed to send email to ${recipient}: ${error.message}`);
     }
   }
 
