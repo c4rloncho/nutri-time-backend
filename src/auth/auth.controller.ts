@@ -25,6 +25,7 @@ import { RegisterUserDto } from './dto/register-user-dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Public } from './public.decorator';
 
 interface JwtPayload {
   id: number;
@@ -42,12 +43,14 @@ export class AuthController {
   ) {}
 
   // -------- REGISTRO --------
+  @Public()
   @Post('register')
   async register(@Body() registerUserDto: RegisterUserDto) {
     return this.authService.register(registerUserDto);
   }
 
   // -------- LOGIN --------
+  @Public()
   @Post('login')
   async login(
     @Body() loginUserDto: LoginUserDto,
@@ -77,6 +80,7 @@ export class AuthController {
   }
 
   // -------- REFRESH --------
+  @Public()
   @Post('refresh')
   @UseGuards(AuthGuard('jwt-refresh'))
   async refresh(
@@ -132,6 +136,7 @@ export class AuthController {
   }
 
   // -------- FORGOT PASSWORD --------
+  @Public()
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.authService.forgotPassword(dto.email);
@@ -139,6 +144,7 @@ export class AuthController {
   }
 
   // -------- RESET PASSWORD --------
+  @Public()
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.newPassword);
