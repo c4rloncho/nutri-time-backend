@@ -21,7 +21,7 @@ export const databaseConfigAsync: TypeOrmModuleAsyncOptions = {
       autoLoadEntities: true,
       synchronize,
       logging: ['error', 'warn'],
-      ssl: configService.get<string>('DB_SSL') === 'true'
+      ssl: (configService.get<string>('DB_SSL') === 'true' || nodeEnv === 'production')
         ? { rejectUnauthorized: false }
         : false,
     };
