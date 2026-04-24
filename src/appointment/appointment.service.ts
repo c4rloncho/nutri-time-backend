@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { CreateGuestAppointmentDto } from './dto/create-guest-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { Appointment } from './entities/appointment.entity';
 import { AvailabilityService } from 'src/availability/availability.service';
@@ -127,6 +128,92 @@ export class AppointmentService {
     const patient = await this.userRepository.findOne({ where: { id: patientId } });
     this.mailService.sendAppointmentCreated(
       this.buildEmailData(patient!, nutritionist, saved),
+    );
+
+    return saved;
+  }
+
+  async createGuest(createDto: CreateGuestAppointmentDto): Promise<Appointment> {
+    const nutritionist = await this.userRepository.findOne({
+      where: { id: createDto.nutritionistId },
+    });
+
+    if (!nutritionist) {
+      throw new NotFoundException('Nutritionist not found');
+    }
+
+    if (nutritionist.role !== UserRole.NUTRITIONIST) {
+      throw new BadRequestException('Selected user is not a nutritionist');
+    }
+
+    const appointmentDate = new Date(createDto.date);
+
+    const availableSlots = await this.availabilityService.getAvailableSlots(
+      createDto.nutritionistId,
+      appointmentDate,
+    );
+
+    if (!availableSlots.includes(createDto.startTime)) {
+      throw new BadRequestException(
+        `Selected time slot "${createDto.startTime}" is not available. Available slots: ${availableSlots.join(', ')}`,
+      );
+    }
+
+    const availabilityBlock = await this.findAvailabilityBlockForSlot(
+      createDto.nutritionistId,
+      appointmentDate,
+      createDto.startTime,
+    );
+
+    const duration = availabilityBlock.slotDuration;
+    const endTime = this.calculateEndTime(createDto.startTime, duration);
+
+    const conflictingAppointment = await this.appointmentRepository.findOne({
+      where: [
+        {
+          nutritionistId: createDto.nutritionistId,
+          date: createDto.date,
+          startTime: createDto.startTime,
+          status: AppointmentStatus.CONFIRMED,
+        },
+        {
+          nutritionistId: createDto.nutritionistId,
+          date: createDto.date,
+          startTime: createDto.startTime,
+          status: AppointmentStatus.PENDING,
+        },
+      ],
+    });
+
+    if (conflictingAppointment) {
+      throw new ConflictException('This time slot is already booked');
+    }
+
+    let price: number | null = null;
+    switch (duration) {
+      case 15: price = nutritionist.price15; break;
+      case 30: price = nutritionist.price30; break;
+      case 45: price = nutritionist.price45; break;
+      case 60: price = nutritionist.price60; break;
+    }
+
+    const appointment = this.appointmentRepository.create({
+      patientId: null,
+      guestName: createDto.guestName,
+      guestEmail: createDto.guestEmail,
+      nutritionistId: createDto.nutritionistId,
+      date: createDto.date,
+      startTime: createDto.startTime,
+      endTime,
+      duration,
+      price,
+      status: AppointmentStatus.PENDING,
+    });
+
+    const saved = await this.appointmentRepository.save(appointment);
+
+    this.mailService.sendAppointmentCreated(
+      this.buildEmailData(null, nutritionist, saved),
     );
 
     return saved;
@@ -348,10 +435,10 @@ export class AppointmentService {
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
   }
 
-  private buildEmailData(patient: User, nutritionist: User, appointment: Appointment): AppointmentEmailData {
+  private buildEmailData(patient: User | null, nutritionist: User, appointment: Appointment): AppointmentEmailData {
     return {
-      patientName: patient.fullname,
-      patientEmail: patient.email,
+      patientName: patient?.fullname ?? appointment.guestName ?? 'Invitado',
+      patientEmail: patient?.email ?? appointment.guestEmail ?? '',
       nutritionistName: nutritionist.fullname,
       nutritionistEmail: nutritionist.email,
       date: appointment.date,

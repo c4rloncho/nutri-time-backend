@@ -18,6 +18,7 @@ import { CreateTimeBlockDto } from './dto/create-time-block.dto';
 import { UpdateTimeBlockDto } from './dto/update-time-block.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { Public } from 'src/auth/public.decorator';
 import { UserRole } from 'src/user/entities/user.entity';
 
 @Controller('availability')
@@ -38,11 +39,13 @@ export class AvailabilityController {
   }
 
   @Get('nutritionist/:id')
+  @Public()
   findByNutritionist(@Param('id', ParseIntPipe) id: number) {
     return this.availabilityService.findAllByNutritionist(id);
   }
 
   @Get('slots')
+  @Public()
   getAvailableSlots(
     @Query('nutritionistId', ParseIntPipe) nutritionistId: number,
     @Query('date') date: string,
@@ -52,6 +55,7 @@ export class AvailabilityController {
   }
 
   @Get('calendar')
+  @Public()
   getCalendar(
     @Query('nutritionistId', ParseIntPipe) nutritionistId: number,
     @Query('startDate') startDate: string,

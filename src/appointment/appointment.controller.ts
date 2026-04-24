@@ -14,9 +14,11 @@ import {
 } from '@nestjs/common';
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { CreateGuestAppointmentDto } from './dto/create-guest-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { Public } from 'src/auth/public.decorator';
 import { UserRole } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from './enums/appointment-status.enum';
 
@@ -29,6 +31,12 @@ export class AppointmentController {
   @Roles(UserRole.PATIENT)
   create(@Request() req, @Body() createDto: CreateAppointmentDto) {
     return this.appointmentService.create(req.user.id, createDto);
+  }
+
+  @Post('guest')
+  @Public()
+  createGuest(@Body() createDto: CreateGuestAppointmentDto) {
+    return this.appointmentService.createGuest(createDto);
   }
 
   @Get()

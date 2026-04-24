@@ -36,8 +36,14 @@ export class Appointment {
     })
     status: AppointmentStatus;
 
-    @Column()
-    patientId: number;
+    @Column({ nullable: true })
+    patientId: number | null;
+
+    @Column({ type: 'varchar', nullable: true })
+    guestName: string | null;
+
+    @Column({ type: 'varchar', nullable: true })
+    guestEmail: string | null;
 
     @Column()
     nutritionistId: number;
@@ -45,9 +51,9 @@ export class Appointment {
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     createdAt: Date;
 
-    @ManyToOne(() => User, user => user.appointmentsAsPatient)
+    @ManyToOne(() => User, user => user.appointmentsAsPatient, { nullable: true })
     @JoinColumn({ name: 'patientId' })
-    patient: User;
+    patient: User | null;
 
     // Relación con la nutricionista
     @ManyToOne(() => User, user => user.appointmentsAsNutritionist)

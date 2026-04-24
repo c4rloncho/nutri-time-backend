@@ -11,6 +11,7 @@ import {
 import { NutritionistService } from './nutritionist.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { Public } from 'src/auth/public.decorator';
 import { UserRole } from 'src/user/entities/user.entity';
 import { UpdatePricesDto } from './dto/update-prices.dto';
 
@@ -20,11 +21,13 @@ export class NutritionistController {
   constructor(private readonly nutritionistService: NutritionistService) {}
 
   @Get()
+  @Public()
   findAll() {
     return this.nutritionistService.findAll();
   }
 
   @Get(':id')
+  @Public()
   getProfile(@Param('id', ParseIntPipe) id: number) {
     return this.nutritionistService.getProfile(id);
   }

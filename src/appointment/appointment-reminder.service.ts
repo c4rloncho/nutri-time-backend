@@ -31,8 +31,8 @@ export class AppointmentReminderService {
 
     for (const appointment of appointments) {
       await this.mailService.sendAppointmentReminder({
-        patientName: appointment.patient.fullname,
-        patientEmail: appointment.patient.email,
+        patientName: appointment.patient?.fullname ?? appointment.guestName ?? 'Invitado',
+        patientEmail: appointment.patient?.email ?? appointment.guestEmail ?? '',
         nutritionistName: appointment.nutritionist.fullname,
         nutritionistEmail: appointment.nutritionist.email,
         date: appointment.date,
