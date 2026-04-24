@@ -1,4 +1,3 @@
-// src/auth/auth.controller.ts
 import {
   Body,
   Controller,
@@ -9,14 +8,13 @@ import {
   Patch,
   Post,
   Req,
-  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import { memoryStorage } from 'multer';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from './auth.service';
@@ -31,10 +29,6 @@ interface JwtPayload {
   id: number;
   username: string;
 }
-
-const ACCESS_COOKIE_MAX_AGE = 15 * 60 * 1000;
-const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
-const isProd = !!process.env.FRONTEND_URL;
 
 @Controller('auth')
 export class AuthController {
@@ -53,30 +47,9 @@ export class AuthController {
   // -------- LOGIN --------
   @Public()
   @Post('login')
-  async login(
-    @Body() loginUserDto: LoginUserDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async login(@Body() loginUserDto: LoginUserDto) {
     const { access_token, refresh_token } = await this.authService.login(loginUserDto);
-
-
-    response.cookie('access_token', access_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      maxAge: ACCESS_COOKIE_MAX_AGE,
-      path: '/',
-    });
-
-    response.cookie('refresh_token', refresh_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      maxAge: REFRESH_COOKIE_MAX_AGE,
-      path: '/auth/refresh',
-    });
-
-    return { success: true, message: 'Login successful' };
+    return { success: true, message: 'Login successful', access_token, refresh_token };
   }
 
   // -------- REFRESH --------
@@ -85,51 +58,19 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt-refresh'))
   async refresh(
     @Req() req: Request & { user: { id: number; role: string; refreshToken: string } },
-    @Res({ passthrough: true }) response: Response,
   ) {
     const { access_token, refresh_token } = await this.authService.refresh(
       req.user.id,
       req.user.refreshToken,
     );
-
-
-    response.cookie('access_token', access_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      maxAge: ACCESS_COOKIE_MAX_AGE,
-      path: '/',
-    });
-
-    response.cookie('refresh_token', refresh_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      maxAge: REFRESH_COOKIE_MAX_AGE,
-      path: '/auth/refresh',
-    });
-
-    return { success: true, message: 'Tokens renovados' };
+    return { success: true, message: 'Tokens renovados', access_token, refresh_token };
   }
 
   // -------- LOGOUT --------
   @Post('logout')
   @UseGuards(AuthGuard('jwt'))
-  async logout(
-    @Req() req: Request & { user: { id: number } },
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async logout(@Req() req: Request & { user: { id: number } }) {
     await this.authService.logout(req.user.id);
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-    } as const;
-
-    response.clearCookie('access_token', { ...cookieOptions, path: '/' });
-    response.clearCookie('refresh_token', { ...cookieOptions, path: '/auth/refresh' });
-
     return { success: true, message: 'Logout successful' };
   }
 
