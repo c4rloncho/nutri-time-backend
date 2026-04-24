@@ -113,7 +113,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_CONSTANT') || 'fallback-secret',
-      expiresIn: this.configService.get('JWT_EXPIRATION') || '15m',
+      expiresIn: '15m',
     });
 
     const refreshToken = this.jwtService.sign(payload, {
