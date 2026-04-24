@@ -32,8 +32,9 @@ interface JwtPayload {
   username: string;
 }
 
-const ACCESS_COOKIE_MAX_AGE = 15 * 60 * 1000; // 15 minutos
-const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días
+const ACCESS_COOKIE_MAX_AGE = 15 * 60 * 1000;
+const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const isProd = !!process.env.FRONTEND_URL;
 
 @Controller('auth')
 export class AuthController {
@@ -58,7 +59,6 @@ export class AuthController {
   ) {
     const { access_token, refresh_token } = await this.authService.login(loginUserDto);
 
-    const isProd = process.env.NODE_ENV === 'production';
 
     response.cookie('access_token', access_token, {
       httpOnly: true,
@@ -92,7 +92,6 @@ export class AuthController {
       req.user.refreshToken,
     );
 
-    const isProd = process.env.NODE_ENV === 'production';
 
     response.cookie('access_token', access_token, {
       httpOnly: true,
@@ -122,7 +121,6 @@ export class AuthController {
   ) {
     await this.authService.logout(req.user.id);
 
-    const isProd = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
       secure: isProd,
