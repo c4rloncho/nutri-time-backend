@@ -250,7 +250,7 @@ export class AppointmentService {
     // Ordenar por prioridad de status, luego por fecha
     // Prioridad: PENDING > CONFIRMED > COMPLETED > CANCELLED
     queryBuilder
-      .addSelect(
+      .orderBy(
         `CASE
           WHEN appointment.status = '${AppointmentStatus.PENDING}' THEN 1
           WHEN appointment.status = '${AppointmentStatus.CONFIRMED}' THEN 2
@@ -258,9 +258,8 @@ export class AppointmentService {
           WHEN appointment.status = '${AppointmentStatus.CANCELLED}' THEN 4
           ELSE 5
         END`,
-        'status_priority'
+        'ASC',
       )
-      .orderBy('status_priority', 'ASC')
       .addOrderBy('appointment.date', 'DESC')
       .addOrderBy('appointment.startTime', 'DESC');
 
