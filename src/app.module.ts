@@ -13,6 +13,7 @@ import { AvailabilityModule } from './availability/availability.module';
 import { AuthModule } from './auth/auth.module';
 import { NutritionistModule } from './nutritionist/nutritionist.module';
 import { PatientProgressModule } from './patient-progress/patient-progress.module';
+import { MealPlanModule } from './meal-plan/meal-plan.module';
 import { databaseConfigAsync } from './database/config';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -28,6 +29,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     AuthModule,
     NutritionistModule,
     PatientProgressModule,
+    MealPlanModule,
   ],
   controllers: [AppController],
   providers: [

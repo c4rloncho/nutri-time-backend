@@ -23,6 +23,7 @@ import { RegisterUserDto } from './dto/register-user-dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { Public } from './public.decorator';
 
 interface JwtPayload {
@@ -50,6 +51,14 @@ export class AuthController {
   async login(@Body() loginUserDto: LoginUserDto) {
     const { access_token, refresh_token } = await this.authService.login(loginUserDto);
     return { success: true, message: 'Login successful', access_token, refresh_token };
+  }
+
+  // -------- GOOGLE LOGIN --------
+  @Public()
+  @Post('google')
+  async googleLogin(@Body() dto: GoogleAuthDto) {
+    const { access_token, refresh_token } = await this.authService.googleLogin(dto.idToken);
+    return { success: true, message: 'Login con Google exitoso', access_token, refresh_token };
   }
 
   // -------- REFRESH --------

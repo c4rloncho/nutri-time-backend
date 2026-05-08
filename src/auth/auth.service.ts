@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { User } from 'src/user/entities/user.entity';
 import { ILike, Repository } from 'typeorm';
 import { LoginUserDto } from './dto/login-user-dto';
@@ -78,12 +79,65 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    if (!user.password) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     return this.generateTokens(user);
+  }
+
+  // ---------- GOOGLE LOGIN ----------
+  async googleLogin(idToken: string) {
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    const client = new OAuth2Client(clientId);
+
+    let payload: { sub: string; email: string; name: string; picture?: string };
+    try {
+      const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+      const p = ticket.getPayload();
+      if (!p?.sub || !p?.email) throw new Error();
+      payload = { sub: p.sub, email: p.email, name: p.name ?? p.email, picture: p.picture };
+    } catch {
+      throw new UnauthorizedException('Token de Google inválido');
+    }
+
+    let user = await this.userRepository.findOne({
+      where: [{ googleId: payload.sub }, { email: payload.email.toLowerCase() }],
+    });
+
+    if (!user) {
+      const username = await this.generateUniqueUsername(payload.email);
+      user = this.userRepository.create({
+        fullname: payload.name,
+        email: payload.email.toLowerCase(),
+        username,
+        googleId: payload.sub,
+        password: null,
+      });
+      await this.userRepository.save(user);
+      this.mailService.sendWelcome({ fullname: payload.name, email: payload.email.toLowerCase() });
+    } else if (!user.googleId) {
+      await this.userRepository.update(user.id, { googleId: payload.sub });
+      user.googleId = payload.sub;
+    }
+
+    return this.generateTokens(user);
+  }
+
+  private async generateUniqueUsername(email: string): Promise<string> {
+    const base = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+    let username = base;
+    let attempts = 0;
+    while (await this.userRepository.findOne({ where: { username } })) {
+      username = `${base}_${Math.floor(Math.random() * 9000) + 1000}`;
+      if (++attempts > 10) username = `${base}_${Date.now()}`;
+    }
+    return username;
   }
 
   // ---------- REFRESH ----------

@@ -30,8 +30,11 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
-  password: string;
+  @Column({ type: 'text', nullable: true })
+  password: string | null;
+
+  @Column({ type: 'text', nullable: true, unique: true })
+  googleId: string | null;
 
   @Column({ nullable: true, type: 'text' })
   refreshToken: string | null;
