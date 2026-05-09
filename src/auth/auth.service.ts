@@ -18,6 +18,7 @@ import { LoginUserDto } from './dto/login-user-dto';
 import { RegisterUserDto } from './dto/register-user-dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { MailService } from 'src/mail/mail.service';
+import { GoogleCalendarService } from 'src/google-calendar/google-calendar.service';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly googleCalendarService: GoogleCalendarService,
   ) { }
 
   // ---------- REGISTRO ----------
@@ -229,6 +231,39 @@ export class AuthService {
       resetPasswordExpires: null,
       refreshToken: null, // invalida sesiones activas
     });
+  }
+
+  // ---------- GOOGLE CALENDAR ----------
+  getCalendarAuthUrl(userId: number): string {
+    const state = Buffer.from(userId.toString()).toString('base64url');
+    return this.googleCalendarService.getAuthUrl(state);
+  }
+
+  async handleCalendarCallback(code: string, state: string): Promise<void> {
+    const userId = parseInt(Buffer.from(state, 'base64url').toString(), 10);
+    if (isNaN(userId)) throw new BadRequestException('Estado inválido');
+
+    const { accessToken, refreshToken, expiry } =
+      await this.googleCalendarService.exchangeCodeForTokens(code);
+
+    await this.userRepository.update(userId, {
+      googleCalendarAccessToken: accessToken,
+      googleCalendarRefreshToken: refreshToken,
+      googleCalendarTokenExpiry: expiry,
+    });
+  }
+
+  async disconnectCalendar(userId: number): Promise<void> {
+    await this.userRepository.update(userId, {
+      googleCalendarAccessToken: null,
+      googleCalendarRefreshToken: null,
+      googleCalendarTokenExpiry: null,
+    });
+  }
+
+  async getCalendarStatus(userId: number): Promise<{ connected: boolean }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    return { connected: !!user?.googleCalendarAccessToken };
   }
 
   // ---------- PERFIL ----------

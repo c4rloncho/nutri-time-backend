@@ -40,6 +40,15 @@ export class User {
   refreshToken: string | null;
 
   @Column({ nullable: true, type: 'text' })
+  googleCalendarAccessToken: string | null;
+
+  @Column({ nullable: true, type: 'text' })
+  googleCalendarRefreshToken: string | null;
+
+  @Column({ nullable: true, type: 'timestamptz' })
+  googleCalendarTokenExpiry: Date | null;
+
+  @Column({ nullable: true, type: 'text' })
   resetPasswordToken: string | null;
 
   @Column({ nullable: true, type: 'timestamptz' })

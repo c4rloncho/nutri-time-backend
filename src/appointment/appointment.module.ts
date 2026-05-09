@@ -8,12 +8,14 @@ import { AvailabilityModule } from 'src/availability/availability.module';
 import { AvailabilityBlock } from 'src/availability/entities/availability-block.entity';
 import { MailModule } from 'src/mail/mail.module';
 import { AppointmentReminderService } from './appointment-reminder.service';
+import { GoogleCalendarModule } from 'src/google-calendar/google-calendar.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment, User, AvailabilityBlock]),
     AvailabilityModule,
     MailModule,
+    GoogleCalendarModule,
   ],
   controllers: [AppointmentController],
   providers: [AppointmentService, AppointmentReminderService],

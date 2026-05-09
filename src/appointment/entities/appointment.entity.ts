@@ -48,6 +48,12 @@ export class Appointment {
     @Column()
     nutritionistId: number;
 
+    @Column({ type: 'boolean', default: false })
+    isOnline: boolean;
+
+    @Column({ type: 'varchar', nullable: true })
+    meetLink: string | null;
+
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     createdAt: Date;
 

@@ -1,4 +1,4 @@
-import { IsDateString, IsEmail, IsInt, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEmail, IsInt, IsOptional, IsString } from 'class-validator';
 
 export class CreateGuestAppointmentDto {
   @IsInt()
@@ -15,4 +15,8 @@ export class CreateGuestAppointmentDto {
 
   @IsEmail()
   guestEmail: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isOnline?: boolean;
 }

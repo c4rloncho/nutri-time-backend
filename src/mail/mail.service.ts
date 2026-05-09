@@ -12,6 +12,7 @@ export interface AppointmentEmailData {
   endTime: string;
   duration: number;
   price: number | null;
+  meetLink?: string | null;
 }
 
 export interface WelcomeEmailData {
@@ -120,6 +121,13 @@ export class MailService {
 
   async sendAppointmentConfirmed(data: AppointmentEmailData) {
     const priceText = data.price ? `$${data.price}` : 'Por definir';
+    const meetSection = data.meetLink
+      ? `<div style="background:#f0fdf4;border:1px solid #16a34a;border-radius:8px;padding:16px;margin:16px 0;text-align:center;">
+          <p style="margin:0 0 8px 0;font-weight:bold;color:#15803d;">📹 Enlace de Google Meet</p>
+          <a href="${data.meetLink}" style="background:#16a34a;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">Unirse a la videollamada</a>
+          <p style="margin:8px 0 0 0;font-size:12px;color:#6b7280;">${data.meetLink}</p>
+        </div>`
+      : '';
 
     await this.send({
       to: data.patientEmail,
@@ -127,7 +135,7 @@ export class MailService {
       html: this.appointmentTemplate({
         title: '¡Tu cita ha sido confirmada!',
         greeting: `Hola ${data.patientName},`,
-        body: `<strong>${data.nutritionistName}</strong> ha confirmado tu cita. ¡Te esperamos!`,
+        body: `<strong>${data.nutritionistName}</strong> ha confirmado tu cita. ¡Te esperamos!${meetSection}`,
         details: this.detailsTable(data, priceText),
         footer: 'Recuerda llegar a tiempo. Si necesitas cancelar, hazlo con anticipación.',
       }),
@@ -192,6 +200,13 @@ export class MailService {
   }
 
   private detailsTable(data: AppointmentEmailData, priceText: string): string {
+    const meetRow = data.meetLink
+      ? `<tr style="background:#f0fdf4;">
+          <td style="padding:10px;border:1px solid #d1fae5;font-weight:bold;">📹 Google Meet</td>
+          <td style="padding:10px;border:1px solid #d1fae5;"><a href="${data.meetLink}" style="color:#16a34a;">${data.meetLink}</a></td>
+        </tr>`
+      : '';
+
     return `
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
         <tr style="background:#f0fdf4;">
@@ -210,6 +225,7 @@ export class MailService {
           <td style="padding:10px;border:1px solid #d1fae5;font-weight:bold;">💰 Precio</td>
           <td style="padding:10px;border:1px solid #d1fae5;">${priceText}</td>
         </tr>
+        ${meetRow}
       </table>
     `;
   }

@@ -1,12 +1,15 @@
 import {
   Body,
   Controller,
+  Delete,
   FileTypeValidator,
   Get,
   MaxFileSizeValidator,
   ParseFilePipe,
   Patch,
   Post,
+  Query,
+  Redirect,
   Req,
   UploadedFile,
   UseGuards,
@@ -105,6 +108,49 @@ export class AuthController {
   async me(@Req() req: Request & { user: JwtPayload }) {
     const userId = req.user.id;
     return this.userService.findOne(userId);
+  }
+
+  // -------- GOOGLE CALENDAR --------
+  @Get('google/calendar/url')
+  @UseGuards(AuthGuard('jwt'))
+  getCalendarUrl(@Req() req: Request & { user: { sub: number; id?: number } }) {
+    const userId: number = req.user.sub ?? req.user.id;
+    const url = this.authService.getCalendarAuthUrl(userId);
+    return { url };
+  }
+
+  @Get('google/calendar/callback')
+  @Public()
+  @Redirect()
+  async calendarCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Query('error') error: string,
+  ) {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    if (error || !code) {
+      return { url: `${frontendUrl}/calendar-connect?success=false` };
+    }
+    try {
+      await this.authService.handleCalendarCallback(code, state);
+      return { url: `${frontendUrl}/calendar-connect?success=true` };
+    } catch {
+      return { url: `${frontendUrl}/calendar-connect?success=false` };
+    }
+  }
+
+  @Get('google/calendar/status')
+  @UseGuards(AuthGuard('jwt'))
+  getCalendarStatus(@Req() req: Request & { user: { sub: number; id?: number } }) {
+    const userId: number = req.user.sub ?? req.user.id;
+    return this.authService.getCalendarStatus(userId);
+  }
+
+  @Delete('google/calendar')
+  @UseGuards(AuthGuard('jwt'))
+  disconnectCalendar(@Req() req: Request & { user: { sub: number; id?: number } }) {
+    const userId: number = req.user.sub ?? req.user.id;
+    return this.authService.disconnectCalendar(userId);
   }
 
   // -------- ACTUALIZAR PERFIL --------

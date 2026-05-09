@@ -10,10 +10,13 @@ import { User } from 'src/user/entities/user.entity';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 import { MailModule } from 'src/mail/mail.module';
+import { GoogleCalendarModule } from 'src/google-calendar/google-calendar.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
     MailModule,
+    GoogleCalendarModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

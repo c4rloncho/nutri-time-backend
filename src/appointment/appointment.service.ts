@@ -15,6 +15,7 @@ import { User, UserRole } from 'src/user/entities/user.entity';
 import { AvailabilityBlock } from 'src/availability/entities/availability-block.entity';
 import { AppointmentStatus } from './enums/appointment-status.enum';
 import { MailService, AppointmentEmailData } from 'src/mail/mail.service';
+import { GoogleCalendarService } from 'src/google-calendar/google-calendar.service';
 
 @Injectable()
 export class AppointmentService {
@@ -27,6 +28,7 @@ export class AppointmentService {
     private availabilityBlockRepository: Repository<AvailabilityBlock>,
     private availabilityService: AvailabilityService,
     private mailService: MailService,
+    private googleCalendarService: GoogleCalendarService,
   ) { }
 
   async create(
@@ -115,12 +117,13 @@ export class AppointmentService {
     const appointment = this.appointmentRepository.create({
       patientId,
       nutritionistId: createDto.nutritionistId,
-      date: dateString, // Guardar como string en vez de Date object
+      date: dateString,
       startTime: createDto.startTime,
       endTime,
       duration,
       price,
       status: AppointmentStatus.PENDING,
+      isOnline: createDto.isOnline ?? false,
     });
 
     const saved = await this.appointmentRepository.save(appointment);
@@ -208,6 +211,7 @@ export class AppointmentService {
       duration,
       price,
       status: AppointmentStatus.PENDING,
+      isOnline: createDto.isOnline ?? false,
     });
 
     const saved = await this.appointmentRepository.save(appointment);
@@ -376,6 +380,24 @@ export class AppointmentService {
     }
 
     appointment.status = AppointmentStatus.CONFIRMED;
+
+    if (appointment.isOnline) {
+      const nutritionist = await this.userRepository.findOne({ where: { id: nutritionistId } });
+      if (nutritionist?.googleCalendarAccessToken) {
+        const patientName = appointment.patient?.fullname ?? appointment.guestName ?? 'Paciente';
+        const meetLink = await this.googleCalendarService.createMeetEvent(
+          nutritionist.googleCalendarAccessToken,
+          nutritionist.googleCalendarRefreshToken,
+          appointment.date,
+          appointment.startTime.substring(0, 5),
+          appointment.endTime.substring(0, 5),
+          nutritionist.fullname,
+          patientName,
+        );
+        appointment.meetLink = meetLink;
+      }
+    }
+
     const saved = await this.appointmentRepository.save(appointment);
 
     this.mailService.sendAppointmentConfirmed(
@@ -444,6 +466,7 @@ export class AppointmentService {
       endTime: appointment.endTime.substring(0, 5),
       duration: appointment.duration,
       price: appointment.price,
+      meetLink: appointment.meetLink,
     };
   }
 
