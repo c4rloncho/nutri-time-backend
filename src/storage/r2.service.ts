@@ -19,14 +19,14 @@ export class R2Service {
   private readonly publicUrl: string;
 
   constructor(private readonly config: ConfigService) {
-    const accountId = this.config.get<string>('R2_ACCOUNT_ID');
+    const endpoint = this.config.get<string>('R2_ENDPOINT');
     const accessKeyId = this.config.get<string>('R2_ACCESS_KEY_ID');
     const secretAccessKey = this.config.get<string>('R2_SECRET_ACCESS_KEY');
-    this.bucket = this.config.get<string>('R2_BUCKET') ?? '';
+    this.bucket = this.config.get<string>('R2_BUCKET_NAME') ?? '';
     this.publicUrl = (this.config.get<string>('R2_PUBLIC_URL') ?? '').replace(/\/$/, '');
 
     // ponytail: sin credenciales el servicio queda inerte y avisa al subir, en vez de tumbar el arranque
-    if (!accountId || !accessKeyId || !secretAccessKey || !this.bucket || !this.publicUrl) {
+    if (!endpoint || !accessKeyId || !secretAccessKey || !this.bucket || !this.publicUrl) {
       this.logger.warn('R2 no configurado — la subida de imagenes esta deshabilitada');
       this.client = null;
       return;
@@ -34,7 +34,7 @@ export class R2Service {
 
     this.client = new S3Client({
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint,
       credentials: { accessKeyId, secretAccessKey },
     });
   }

@@ -30,7 +30,14 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  /** URL publica de la foto de perfil en R2. */
+  /**
+   * URL publica de la foto de perfil en R2.
+   * ponytail: guardamos la URL absoluta, asi que queda acoplada al host de R2_PUBLIC_URL.
+   * Hoy apunta al subdominio r2.dev (sin CDN ni cache, con rate limits). Al migrar a dominio
+   * propio hay que reescribir las existentes:
+   *   UPDATE users SET avatar = replace(avatar, '<host-viejo>', '<host-nuevo>');
+   * Si esto se hace habitual, guardar solo la key y componer la URL al leer.
+   */
   @Column({ type: 'text', nullable: true })
   avatar: string | null;
 

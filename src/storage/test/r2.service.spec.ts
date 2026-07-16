@@ -2,10 +2,10 @@ import { ConfigService } from '@nestjs/config';
 import { R2Service } from '../r2.service';
 
 const CONFIG: Record<string, string> = {
-  R2_ACCOUNT_ID: 'acct',
+  R2_ENDPOINT: 'https://acct.r2.cloudflarestorage.com',
   R2_ACCESS_KEY_ID: 'key',
   R2_SECRET_ACCESS_KEY: 'secret',
-  R2_BUCKET: 'nutri',
+  R2_BUCKET_NAME: 'alma-nutritiva',
   R2_PUBLIC_URL: 'https://cdn.example.com',
 };
 
@@ -40,7 +40,7 @@ describe('R2Service', () => {
   });
 
   it('queda deshabilitado y falla al subir si faltan credenciales', async () => {
-    const service = makeService({ R2_BUCKET: undefined });
+    const service = makeService({ R2_BUCKET_NAME: undefined });
 
     expect(service.isEnabled).toBe(false);
     await expect(service.uploadImage(jpeg, 'avatars')).rejects.toThrow();
@@ -53,7 +53,7 @@ describe('R2Service', () => {
 
     await service.deleteByUrl('https://cdn.example.com/avatars/abc.jpg');
 
-    expect(send.mock.calls[0][0].input).toMatchObject({ Bucket: 'nutri', Key: 'avatars/abc.jpg' });
+    expect(send.mock.calls[0][0].input).toMatchObject({ Bucket: 'alma-nutritiva', Key: 'avatars/abc.jpg' });
   });
 
   it('ignora URLs ajenas al bucket en vez de borrar una key arbitraria', async () => {
