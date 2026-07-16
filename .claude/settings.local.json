@@ -7,7 +7,13 @@
       "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 20)",
       "PowerShell(npm run *)",
       "PowerShell(docker compose exec *)",
-      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 10)"
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 10)",
+      "Bash(timeout 60 npm run dev)",
+      "Bash(timeout 90 npm run start:dev)",
+      "Bash(docker compose *)",
+      "Bash(timeout 75 npm run start:dev)",
+      "Bash(npm run *)",
+      "Bash(timeout 45 npm run start)"
     ],
     "deny": [],
     "ask": []
