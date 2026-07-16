@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm install)",
       "Bash(npm install:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 20)",
+      "PowerShell(npm run *)",
+      "PowerShell(docker compose exec *)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 10)"
     ],
     "deny": [],
     "ask": []

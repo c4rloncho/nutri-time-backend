@@ -107,7 +107,7 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   async me(@Req() req: Request & { user: JwtPayload }) {
     const userId = req.user.id;
-    return this.userService.findOne(userId);
+    return this.userService.findOneSafe(userId);
   }
 
   // -------- GOOGLE CALENDAR --------

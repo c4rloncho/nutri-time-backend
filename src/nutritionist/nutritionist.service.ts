@@ -44,6 +44,7 @@ export class NutritionistService {
       fullname: nutritionist.fullname,
       email: nutritionist.email,
       username: nutritionist.username,
+      avatar: nutritionist.avatar,
       createdAt: nutritionist.createdAt,
       prices: {
         price15: nutritionist.price15,
@@ -62,7 +63,7 @@ export class NutritionistService {
   async findAll() {
     const nutritionists = await this.userRepository.find({
       where: { role: UserRole.NUTRITIONIST },
-      select: ['id', 'fullname', 'username', 'email', 'createdAt', 'price15', 'price30', 'price45', 'price60'],
+      select: ['id', 'fullname', 'username', 'email', 'avatar', 'createdAt', 'price15', 'price30', 'price45', 'price60'],
     });
 
     return nutritionists;

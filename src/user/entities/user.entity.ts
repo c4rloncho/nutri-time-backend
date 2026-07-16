@@ -30,6 +30,10 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  /** URL publica de la foto de perfil en R2. */
+  @Column({ type: 'text', nullable: true })
+  avatar: string | null;
+
   @Column({ type: 'text', nullable: true })
   password: string | null;
 

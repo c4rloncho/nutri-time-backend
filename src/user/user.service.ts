@@ -18,6 +18,22 @@ export class UserService {
     }
     return user;
   }
+
+  /** Perfil sin secretos — este es el que se puede devolver al cliente. */
+  async findOneSafe(id: number) {
+    const {
+      password,
+      refreshToken,
+      googleId,
+      googleCalendarAccessToken,
+      googleCalendarRefreshToken,
+      googleCalendarTokenExpiry,
+      resetPasswordToken,
+      resetPasswordExpires,
+      ...safeUser
+    } = await this.findOne(id);
+    return safeUser;
+  }
   async updateProfile(id: number, data: Partial<User>): Promise<User> {
     const user = await this.findOne(id);
     Object.assign(user, data);

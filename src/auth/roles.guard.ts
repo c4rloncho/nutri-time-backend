@@ -18,6 +18,7 @@ export class RolesGuard implements CanActivate {
     }
 
     const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.includes(user?.role);
+    // ponytail: admin pasa cualquier chequeo de rol en vez de listarlo en cada @Roles()
+    return user?.role === UserRole.ADMIN || requiredRoles.includes(user?.role);
   }
 }

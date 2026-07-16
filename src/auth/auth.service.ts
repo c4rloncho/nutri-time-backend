@@ -19,6 +19,7 @@ import { RegisterUserDto } from './dto/register-user-dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { MailService } from 'src/mail/mail.service';
 import { GoogleCalendarService } from 'src/google-calendar/google-calendar.service';
+import { R2Service } from 'src/storage/r2.service';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +30,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
     private readonly googleCalendarService: GoogleCalendarService,
+    private readonly r2Service: R2Service,
   ) { }
 
   // ---------- REGISTRO ----------
@@ -277,9 +279,46 @@ export class AuthService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    Object.assign(user, dto);
+    // Campo por campo: un Object.assign(user, dto) guardaria la password en claro
+    // y saltaria la unicidad de email/username.
+    if (dto.fullname !== undefined) {
+      user.fullname = dto.fullname;
+    }
+
+    if (dto.username !== undefined && dto.username !== user.username) {
+      const taken = await this.userRepository.findOne({ where: { username: dto.username } });
+      if (taken) {
+        throw new ConflictException('El nombre de usuario ya existe');
+      }
+      user.username = dto.username;
+    }
+
+    if (dto.email !== undefined) {
+      const email = dto.email.toLowerCase();
+      if (email !== user.email) {
+        const taken = await this.userRepository.findOne({ where: { email } });
+        if (taken) {
+          throw new ConflictException('El correo electrónico ya existe');
+        }
+        user.email = email;
+      }
+    }
+
+    if (dto.password !== undefined) {
+      user.password = await bcrypt.hash(dto.password, 10);
+    }
+
+    const previousAvatar = user.avatar;
+    if (photo) {
+      user.avatar = await this.r2Service.uploadImage(photo, 'avatars');
+    }
 
     const updated = await this.userRepository.save(user);
+
+    // Solo tras confirmar el guardado, para no dejar al usuario sin foto si falla.
+    if (photo && previousAvatar) {
+      await this.r2Service.deleteByUrl(previousAvatar);
+    }
 
     const { password, ...safeUser } = updated;
     return safeUser;

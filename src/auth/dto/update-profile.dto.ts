@@ -20,7 +20,5 @@ export class UpdateProfileDto {
   @MinLength(6)
   password?: string;
 
-  @IsOptional()
-  @IsString()
-  avatar?: string;
+  // avatar no se acepta como texto: lo fija el archivo subido en el campo `photo`.
 }
