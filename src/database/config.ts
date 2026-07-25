@@ -6,7 +6,11 @@ export const databaseConfigAsync: TypeOrmModuleAsyncOptions = {
   inject: [ConfigService],
   useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
     const nodeEnv = configService.get<string>('NODE_ENV');
-    const synchronize = nodeEnv !== 'production';
+    // ponytail: DB_SYNC deja crear el esquema en el primer deploy sin montar migraciones.
+    // Ponerlo en true una vez, arrancar, y borrarlo. Si el esquema empieza a cambiar
+    // con datos reales encima, ahí sí toca TypeORM migrations.
+    const synchronize =
+      configService.get<string>('DB_SYNC') === 'true' || nodeEnv !== 'production';
 
     console.log('NODE_ENV:', nodeEnv);
     console.log('Synchronize:', synchronize);
@@ -21,7 +25,8 @@ export const databaseConfigAsync: TypeOrmModuleAsyncOptions = {
       autoLoadEntities: true,
       synchronize,
       logging: ['error', 'warn'],
-      ssl: (configService.get<string>('DB_SSL') === 'true' || nodeEnv === 'production')
+      // La red interna de Railway no ofrece SSL: forzarlo en produccion tumba el arranque.
+      ssl: configService.get<string>('DB_SSL') === 'true'
         ? { rejectUnauthorized: false }
         : false,
     };
