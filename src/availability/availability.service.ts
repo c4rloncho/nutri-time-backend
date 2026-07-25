@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { AvailabilityBlock } from './entities/availability-block.entity';
 import { TimeBlock } from './entities/time-block.entity';
 import { CreateAvailabilityBlockDto } from './dto/create-availability-block.dto';
@@ -234,15 +234,62 @@ export class AvailabilityService {
     startDate: Date,
     endDate: Date,
   ): Promise<CalendarResponse> {
+    // ponytail: 3 queries para todo el rango en vez de 3 por día (~90 round-trips)
+    const start = this.formatDateToString(startDate);
+    const end = this.formatDateToString(endDate);
+
+    const [availabilityBlocks, timeBlocks, appointments] = await Promise.all([
+      this.availabilityRepository.find({
+        where: { nutritionistId, isActive: true },
+      }),
+      this.timeBlockRepository.find({
+        where: { nutritionistId, date: Between(start, end), isActive: true },
+      }),
+      this.appointmentRepository.find({
+        where: {
+          nutritionistId,
+          date: Between(start, end),
+          status: In(['PENDING', 'CONFIRMED']),
+        },
+      }),
+    ]);
+
+    const blocksByDayOfWeek = new Map<string, AvailabilityBlock[]>();
+    for (const b of availabilityBlocks) {
+      const list = blocksByDayOfWeek.get(b.dayOfWeek) ?? [];
+      list.push(b);
+      blocksByDayOfWeek.set(b.dayOfWeek, list);
+    }
+    const timeBlocksByDate = new Map<string, TimeBlock[]>();
+    for (const tb of timeBlocks) {
+      const key = this.dateKey(tb.date);
+      const list = timeBlocksByDate.get(key) ?? [];
+      list.push(tb);
+      timeBlocksByDate.set(key, list);
+    }
+    const bookedByDate = new Map<string, string[]>();
+    for (const apt of appointments) {
+      const key = this.dateKey(apt.date);
+      const list = bookedByDate.get(key) ?? [];
+      list.push(apt.startTime.substring(0, 5));
+      bookedByDate.set(key, list);
+    }
+
     const days: DayCalendar[] = [];
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-      const dayCalendar = await this.getDayCalendar(
-        nutritionistId,
-        new Date(currentDate),
+      const dateString = this.formatDateToString(currentDate);
+      const dayOfWeek = this.getDayOfWeek(currentDate);
+      days.push(
+        this.buildDayCalendar(
+          dateString,
+          dayOfWeek,
+          blocksByDayOfWeek.get(dayOfWeek) ?? [],
+          timeBlocksByDate.get(dateString) ?? [],
+          bookedByDate.get(dateString) ?? [],
+        ),
       );
-      days.push(dayCalendar);
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
@@ -254,22 +301,20 @@ export class AvailabilityService {
     };
   }
 
-  private async getDayCalendar(
-    nutritionistId: number,
-    date: Date,
-  ): Promise<DayCalendar> {
-    const dayOfWeek = this.getDayOfWeek(date);
-    const dateString = this.formatDateToString(date);
+  private dateKey(date: string | Date): string {
+    return typeof date === 'string'
+      ? date.substring(0, 10)
+      : this.formatDateToString(date);
+  }
 
-    // Obtener bloques de disponibilidad para este día
-    const availabilityBlocks = await this.availabilityRepository.find({
-      where: {
-        nutritionistId,
-        dayOfWeek,
-        isActive: true,
-      },
-    });
-
+  // ponytail: puro — los datos ya vienen precargados por getCalendar
+  private buildDayCalendar(
+    dateString: string,
+    dayOfWeek: string,
+    availabilityBlocks: AvailabilityBlock[],
+    timeBlocks: TimeBlock[],
+    bookedSlots: string[],
+  ): DayCalendar {
     // Si no hay disponibilidad configurada para este día
     if (availabilityBlocks.length === 0) {
       return {
@@ -282,15 +327,6 @@ export class AvailabilityService {
     }
 
     const slotDuration = availabilityBlocks[0]?.slotDuration || 60;
-
-    // Obtener TimeBlocks para esta fecha - usar dateString para comparar correctamente
-    const timeBlocks = await this.timeBlockRepository.find({
-      where: {
-        nutritionistId,
-        date: dateString,
-        isActive: true,
-      },
-    });
 
     // Verificar si hay bloqueo de día completo
     const fullDayBlock = timeBlocks.find((tb) => tb.allDay);
@@ -321,20 +357,6 @@ export class AvailabilityService {
       );
       allSlots.push(...blockSlots);
     }
-
-    // Obtener citas existentes - usar dateString para comparar correctamente
-    const appointments = await this.appointmentRepository.find({
-      where: {
-        nutritionistId,
-        date: dateString,
-        status: In(['PENDING', 'CONFIRMED']),
-      },
-    });
-
-    // Normalizar formato de hora (la BD puede devolver "09:00:00", los slots son "09:00")
-    const bookedSlots = appointments.map((apt) =>
-      apt.startTime.substring(0, 5),
-    );
 
     // Obtener slots bloqueados por TimeBlocks parciales
     const blockedSlotsMap = this.getBlockedSlotsWithReason(
