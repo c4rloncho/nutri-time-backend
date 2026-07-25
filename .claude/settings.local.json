@@ -13,7 +13,9 @@
       "Bash(docker compose *)",
       "Bash(timeout 75 npm run start:dev)",
       "Bash(npm run *)",
-      "Bash(timeout 45 npm run start)"
+      "Bash(timeout 45 npm run start)",
+      "PowerShell(railway whoami *)",
+      "PowerShell(ssh-keygen *)"
     ],
     "deny": [],
     "ask": []

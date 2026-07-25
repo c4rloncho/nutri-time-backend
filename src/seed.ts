@@ -8,6 +8,7 @@ import { User, UserRole } from './user/entities/user.entity';
 // ponytail: script suelto en vez de framework de migraciones/seeders.
 // Upsert por email/username (ambos son unique): si ya existe, le pisa
 // password/rol/precios. Pensado para DB local — ver guarda de NODE_ENV abajo.
+// SEED_FORCE=true la salta, solo para el primer arranque de una base vacia.
 const seeds = [
   {
     fullname: 'Admin',
@@ -30,8 +31,11 @@ const seeds = [
 ];
 
 async function main() {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('El seed pisa contraseñas: no correr en production.');
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_FORCE !== 'true') {
+    throw new Error(
+      'El seed pisa contraseñas: no correr en production. ' +
+        'Si la base esta vacia y sabes lo que haces: SEED_FORCE=true npm run seed',
+    );
   }
 
   const app = await NestFactory.createApplicationContext(AppModule, {
