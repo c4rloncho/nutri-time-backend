@@ -22,7 +22,7 @@ const seeds = [
     email: process.env.SEED_NUTRITIONIST_EMAIL ?? 'nutri@nutritime.com',
     password: process.env.SEED_NUTRITIONIST_PASSWORD,
     role: UserRole.NUTRITIONIST,
-    price15: 10000,
+    price15: 15000,
     price30: 18000,
     price45: 25000,
     price60: 30000,

@@ -40,6 +40,8 @@ export class AppointmentReminderService {
         endTime: appointment.endTime.substring(0, 5),
         duration: appointment.duration,
         price: appointment.price,
+        isOnline: appointment.isOnline,
+        meetLink: appointment.meetLink,
       });
     }
   }

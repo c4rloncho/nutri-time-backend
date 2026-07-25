@@ -122,14 +122,17 @@ export class AppointmentService {
       endTime,
       duration,
       price,
-      status: AppointmentStatus.PENDING,
+      // ponytail: auto-confirmadas; la nutricionista cancela si no le sirve
+      status: AppointmentStatus.CONFIRMED,
       isOnline: createDto.isOnline ?? false,
     });
 
-    const saved = await this.appointmentRepository.save(appointment);
+    let saved = await this.appointmentRepository.save(appointment);
 
     const patient = await this.userRepository.findOne({ where: { id: patientId } });
-    this.mailService.sendAppointmentCreated(
+    saved = await this.attachMeetLink(saved, nutritionist, patient?.fullname ?? 'Paciente');
+
+    this.mailService.sendAppointmentConfirmed(
       this.buildEmailData(patient!, nutritionist, saved),
     );
 
@@ -210,13 +213,14 @@ export class AppointmentService {
       endTime,
       duration,
       price,
-      status: AppointmentStatus.PENDING,
+      status: AppointmentStatus.CONFIRMED,
       isOnline: createDto.isOnline ?? false,
     });
 
-    const saved = await this.appointmentRepository.save(appointment);
+    let saved = await this.appointmentRepository.save(appointment);
+    saved = await this.attachMeetLink(saved, nutritionist, createDto.guestName);
 
-    this.mailService.sendAppointmentCreated(
+    this.mailService.sendAppointmentConfirmed(
       this.buildEmailData(null, nutritionist, saved),
     );
 
@@ -381,24 +385,12 @@ export class AppointmentService {
 
     appointment.status = AppointmentStatus.CONFIRMED;
 
-    if (appointment.isOnline) {
-      const nutritionist = await this.userRepository.findOne({ where: { id: nutritionistId } });
-      if (nutritionist?.googleCalendarAccessToken) {
-        const patientName = appointment.patient?.fullname ?? appointment.guestName ?? 'Paciente';
-        const meetLink = await this.googleCalendarService.createMeetEvent(
-          nutritionist.googleCalendarAccessToken,
-          nutritionist.googleCalendarRefreshToken,
-          appointment.date,
-          appointment.startTime.substring(0, 5),
-          appointment.endTime.substring(0, 5),
-          nutritionist.fullname,
-          patientName,
-        );
-        appointment.meetLink = meetLink;
-      }
-    }
-
-    const saved = await this.appointmentRepository.save(appointment);
+    let saved = await this.appointmentRepository.save(appointment);
+    saved = await this.attachMeetLink(
+      saved,
+      appointment.nutritionist,
+      appointment.patient?.fullname ?? appointment.guestName ?? 'Paciente',
+    );
 
     this.mailService.sendAppointmentConfirmed(
       this.buildEmailData(saved.patient, saved.nutritionist, saved),
@@ -447,6 +439,30 @@ export class AppointmentService {
     await this.appointmentRepository.remove(appointment);
   }
 
+  /** Genera el link de Meet si la cita es online y hay Google Calendar conectado. */
+  private async attachMeetLink(
+    appointment: Appointment,
+    nutritionist: User,
+    patientName: string,
+  ): Promise<Appointment> {
+    if (!appointment.isOnline || !nutritionist?.googleCalendarAccessToken) {
+      return appointment;
+    }
+    // createMeetEvent ya loguea y devuelve null si Google falla: la cita se mantiene sin Meet
+    appointment.meetLink = await this.googleCalendarService.createMeetEvent(
+      nutritionist.googleCalendarAccessToken,
+      nutritionist.googleCalendarRefreshToken,
+      appointment.date,
+      appointment.startTime.substring(0, 5),
+      appointment.endTime.substring(0, 5),
+      nutritionist.fullname,
+      patientName,
+    );
+    return appointment.meetLink
+      ? await this.appointmentRepository.save(appointment)
+      : appointment;
+  }
+
   private calculateEndTime(startTime: string, durationMinutes: number): string {
     const [hours, minutes] = startTime.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes + durationMinutes;
@@ -466,6 +482,7 @@ export class AppointmentService {
       endTime: appointment.endTime.substring(0, 5),
       duration: appointment.duration,
       price: appointment.price,
+      isOnline: appointment.isOnline,
       meetLink: appointment.meetLink,
     };
   }
