@@ -244,10 +244,18 @@ export class AppointmentService {
     const skip = (page - 1) * limit;
 
     // Usar QueryBuilder para ordenamiento personalizado
+    // columnas explícitas: leftJoinAndSelect devolvía también password, refreshToken
+    // y los tokens de Google del usuario relacionado
+    const PUBLIC_USER_FIELDS = ['id', 'fullname', 'username', 'email', 'avatar'];
+    const publicFields = (alias: string) =>
+      PUBLIC_USER_FIELDS.map((field) => `${alias}.${field}`);
+
     const queryBuilder = this.appointmentRepository
       .createQueryBuilder('appointment')
-      .leftJoinAndSelect('appointment.patient', 'patient')
-      .leftJoinAndSelect('appointment.nutritionist', 'nutritionist')
+      .leftJoin('appointment.patient', 'patient')
+      .addSelect(publicFields('patient'))
+      .leftJoin('appointment.nutritionist', 'nutritionist')
+      .addSelect(publicFields('nutritionist'))
       .where('(appointment.patientId = :userId OR appointment.nutritionistId = :userId)', { userId });
 
     // Aplicar filtro de status si se proporciona
