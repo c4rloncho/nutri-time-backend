@@ -20,7 +20,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { MailService } from 'src/mail/mail.service';
 import { GoogleCalendarService } from 'src/google-calendar/google-calendar.service';
 import { R2Service } from 'src/storage/r2.service';
-import { randomDefaultAvatar } from './default-avatars';
+import { googleProfilePhoto, randomDefaultAvatar } from './default-avatars';
 
 @Injectable()
 export class AuthService {
@@ -102,12 +102,20 @@ export class AuthService {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     const client = new OAuth2Client(clientId);
 
-    let payload: { sub: string; email: string; name: string };
+    let payload: { sub: string; email: string; name: string; picture?: string };
     try {
       const ticket = await client.verifyIdToken({ idToken, audience: clientId });
       const p = ticket.getPayload();
       if (!p?.sub || !p?.email) throw new Error();
-      payload = { sub: p.sub, email: p.email, name: p.name ?? p.email };
+      // `name` es el nombre real de la cuenta; si falta lo armamos con nombre y apellido
+      const fullname =
+        p.name ?? [p.given_name, p.family_name].filter(Boolean).join(' ');
+      payload = {
+        sub: p.sub,
+        email: p.email,
+        name: fullname || p.email,
+        picture: p.picture,
+      };
     } catch {
       throw new UnauthorizedException('Token de Google inválido');
     }
@@ -124,9 +132,7 @@ export class AuthService {
         username,
         googleId: payload.sub,
         password: null,
-        // La foto de Google no se usa: cuando el usuario no tiene, Google devuelve su
-        // propio avatar de letra, y no hay forma fiable de distinguirlo de una foto real.
-        avatar: randomDefaultAvatar(),
+        avatar: googleProfilePhoto(payload.picture) ?? randomDefaultAvatar(),
       });
       await this.userRepository.save(user);
       this.mailService.sendWelcome({ fullname: payload.name, email: payload.email.toLowerCase() });
