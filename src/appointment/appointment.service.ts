@@ -399,7 +399,11 @@ export class AppointmentService {
     return saved;
   }
 
-  async complete(id: number, nutritionistId: number): Promise<Appointment> {
+  async complete(
+    id: number,
+    nutritionistId: number,
+    notes?: string,
+  ): Promise<Appointment> {
     const appointment = await this.findOne(id);
 
     if (appointment.nutritionistId !== nutritionistId) {
@@ -415,6 +419,10 @@ export class AppointmentService {
     }
 
     appointment.status = AppointmentStatus.COMPLETED;
+    // sin notas en el body se conservan las que ya hubiera
+    if (notes !== undefined) {
+      appointment.notes = notes.trim() || null;
+    }
     const saved = await this.appointmentRepository.save(appointment);
 
     this.mailService.sendAppointmentCompleted(

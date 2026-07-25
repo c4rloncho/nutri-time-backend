@@ -16,11 +16,22 @@ import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CreateGuestAppointmentDto } from './dto/create-guest-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { CompleteAppointmentDto } from './dto/complete-appointment.dto';
+import { Appointment } from './entities/appointment.entity';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { Public } from 'src/auth/public.decorator';
 import { UserRole } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from './enums/appointment-status.enum';
+
+/**
+ * Las observaciones de la consulta son privadas de la nutricionista.
+ * Solo `GET /appointments` (rol NUTRITIONIST, sus propias citas) las devuelve.
+ */
+const stripNotes = (appointment: Appointment) => ({
+  ...appointment,
+  notes: undefined,
+});
 
 @Controller('appointments')
 @UseGuards(JwtAuthGuard)
@@ -52,18 +63,25 @@ export class AppointmentController {
 
   @Get('my-appointments')
   @Roles(UserRole.PATIENT)
-  findMyAppointments(@Request() req) {
-    return this.appointmentService.findByPatient(req.user.id);
+  async findMyAppointments(@Request() req) {
+    const appointments = await this.appointmentService.findByPatient(
+      req.user.id,
+    );
+    return appointments.map(stripNotes);
   }
 
   @Get('nutritionist/:id')
-  findByNutritionist(@Param('id', ParseIntPipe) id: number) {
-    return this.appointmentService.findByNutritionist(id);
+  async findByNutritionist(@Param('id', ParseIntPipe) id: number) {
+    const appointments = await this.appointmentService.findByNutritionist(id);
+    return appointments.map(stripNotes);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.appointmentService.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const appointment = await this.appointmentService.findOne(id);
+    return appointment.nutritionistId === req.user.id
+      ? appointment
+      : stripNotes(appointment);
   }
 
   @Patch(':id')
@@ -88,8 +106,12 @@ export class AppointmentController {
 
   @Patch(':id/complete')
   @Roles(UserRole.NUTRITIONIST)
-  complete(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.appointmentService.complete(id, req.user.id);
+  complete(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @Body() dto: CompleteAppointmentDto,
+  ) {
+    return this.appointmentService.complete(id, req.user.id, dto.notes);
   }
 
   @Delete(':id')

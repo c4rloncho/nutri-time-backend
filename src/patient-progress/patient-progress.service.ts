@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { PatientProgress } from './entities/patient-progress.entity';
 import { WeightGoal } from './entities/weight-goal.entity';
 import { CreateProgressDto } from './dto/create-progress.dto';
 import { SetGoalDto } from './dto/set-goal.dto';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 export interface ProgressSummary {
   currentWeight: number;
@@ -28,7 +30,25 @@ export class PatientProgressService {
     private readonly progressRepository: Repository<PatientProgress>,
     @InjectRepository(WeightGoal)
     private readonly goalRepository: Repository<WeightGoal>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
   ) {}
+
+  /**
+   * Progreso de un paciente visto por su nutricionista.
+   * Solo lectura: quien registra el peso es el paciente.
+   */
+  async getProgressForNutritionist(patientId: number, nutritionistId: number) {
+    const isMyPatient = await this.appointmentRepository.exists({
+      where: { patientId, nutritionistId },
+    });
+
+    if (!isMyPatient) {
+      throw new ForbiddenException('Este paciente no tiene citas contigo');
+    }
+
+    return this.getProgress(patientId);
+  }
 
   async setGoal(patientId: number, dto: SetGoalDto) {
     let goal = await this.goalRepository.findOne({ where: { patientId } });

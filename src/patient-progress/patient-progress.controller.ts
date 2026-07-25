@@ -14,6 +14,8 @@ import { PatientProgressService } from './patient-progress.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CreateProgressDto } from './dto/create-progress.dto';
 import { SetGoalDto } from './dto/set-goal.dto';
+import { Roles } from 'src/auth/roles.decorator';
+import { UserRole } from 'src/user/entities/user.entity';
 
 @Controller('patients/progress')
 @UseGuards(JwtAuthGuard)
@@ -25,6 +27,19 @@ export class PatientProgressController {
   @Get()
   getProgress(@Request() req) {
     return this.patientProgressService.getProgress(req.user.id);
+  }
+
+  // El nutricionista lee (no edita) el progreso de un paciente suyo
+  @Get(':patientId')
+  @Roles(UserRole.NUTRITIONIST)
+  getPatientProgress(
+    @Request() req,
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
+    return this.patientProgressService.getProgressForNutritionist(
+      patientId,
+      req.user.id,
+    );
   }
 
   @Post()

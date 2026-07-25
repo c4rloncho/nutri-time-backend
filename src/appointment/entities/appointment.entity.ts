@@ -54,6 +54,11 @@ export class Appointment {
     @Column({ type: 'varchar', nullable: true })
     meetLink: string | null;
 
+    // Observaciones que deja la nutricionista al cerrar la consulta.
+    // Privadas: se omiten en las respuestas al paciente (ver AppointmentController).
+    @Column({ type: 'text', nullable: true })
+    notes: string | null;
+
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     createdAt: Date;
 
