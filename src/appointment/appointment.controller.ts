@@ -114,6 +114,13 @@ export class AppointmentController {
     return this.appointmentService.complete(id, req.user.id, dto.notes);
   }
 
+  // antes de :id — si no, ParseIntPipe rechaza 'cancelled'
+  @Delete('cancelled')
+  @Roles(UserRole.NUTRITIONIST)
+  removeCancelled(@Request() req) {
+    return this.appointmentService.removeCancelled(req.user.id);
+  }
+
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.appointmentService.remove(id, req.user.id);

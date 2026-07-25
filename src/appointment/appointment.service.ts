@@ -447,6 +447,15 @@ export class AppointmentService {
     await this.appointmentRepository.remove(appointment);
   }
 
+  /** Borra de golpe todas las citas canceladas de la nutricionista. */
+  async removeCancelled(nutritionistId: number): Promise<{ deleted: number }> {
+    const result = await this.appointmentRepository.delete({
+      nutritionistId,
+      status: AppointmentStatus.CANCELLED,
+    });
+    return { deleted: result.affected ?? 0 };
+  }
+
   /** Genera el link de Meet si la cita es online y hay Google Calendar conectado. */
   private async attachMeetLink(
     appointment: Appointment,
