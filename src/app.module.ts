@@ -8,6 +8,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, minutes } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminModule } from './admin/admin.module';
 import { AppointmentModule } from './appointment/appointment.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { AuthModule } from './auth/auth.module';
@@ -24,6 +25,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ThrottlerModule.forRoot([{ ttl: minutes(1), limit: 8 }]),
     TypeOrmModule.forRootAsync(databaseConfigAsync),
     ScheduleModule.forRoot(),
+    AdminModule,
     AppointmentModule,
     AvailabilityModule,
     AuthModule,
