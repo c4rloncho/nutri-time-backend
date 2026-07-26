@@ -223,7 +223,10 @@ export class AvailabilityService {
     );
 
     const availableSlots = slots.filter(
-      (slot) => !bookedSlots.includes(slot) && !blockedSlots.includes(slot),
+      (slot) =>
+        !bookedSlots.includes(slot) &&
+        !blockedSlots.includes(slot) &&
+        !this.isPastSlot(dateString, slot),
     );
 
     return availableSlots.sort();
@@ -377,6 +380,10 @@ export class AvailabilityService {
           status: 'blocked' as SlotStatus,
           reason: blockInfo.reason,
         };
+      }
+
+      if (this.isPastSlot(dateString, time)) {
+        return { time, status: 'blocked' as SlotStatus, reason: 'Hora pasada' };
       }
 
       return { time, status: 'available' as SlotStatus };
@@ -539,6 +546,23 @@ export class AvailabilityService {
       'SATURDAY',
     ];
     return days[date.getUTCDay()]; // Usar UTC para consistencia
+  }
+
+  // Un slot deja de estar disponible cuando su hora ya pasó.
+  // ponytail: comparación de strings — 'YYYY-MM-DD' y 'HH:MM' ordenan igual que el tiempo real.
+  // La zona es la de la consulta, no la del servidor: se calibra con CLINIC_TZ.
+  isPastSlot(dateString: string, time: string): boolean {
+    const now = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: process.env.CLINIC_TZ || 'America/Guayaquil',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date()); // 'YYYY-MM-DD HH:MM'
+    const [today, nowTime] = now.split(' ');
+    return dateString < today || (dateString === today && time <= nowTime);
   }
 
   private formatDateToString(date: Date): string {
