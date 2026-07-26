@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import sharp from 'sharp';
 import { R2Service } from '../r2.service';
 
 const CONFIG: Record<string, string> = {
@@ -16,18 +17,41 @@ const makeService = (overrides: Partial<Record<string, string>> = {}) => {
   return new R2Service(config);
 };
 
-const jpeg = { mimetype: 'image/jpeg', buffer: Buffer.from('x') } as Express.Multer.File;
+let jpeg: Express.Multer.File;
+
+beforeAll(async () => {
+  const buffer = await sharp({
+    create: { width: 1200, height: 900, channels: 3, background: '#7C3AED' },
+  })
+    .jpeg()
+    .toBuffer();
+  jpeg = { mimetype: 'image/jpeg', buffer } as Express.Multer.File;
+});
 
 describe('R2Service', () => {
-  it('devuelve una URL publica bajo el dominio configurado', async () => {
+  it('sube webp redimensionado y devuelve la URL publica', async () => {
     const service = makeService();
     const send = jest.fn().mockResolvedValue({});
     (service as any).client = { send };
 
     const url = await service.uploadImage(jpeg, 'avatars');
 
-    expect(url).toMatch(/^https:\/\/cdn\.example\.com\/avatars\/[0-9a-f-]{36}\.jpg$/);
-    expect(send).toHaveBeenCalledTimes(1);
+    expect(url).toMatch(/^https:\/\/cdn\.example\.com\/avatars\/[0-9a-f-]{36}\.webp$/);
+    const { Body, ContentType } = send.mock.calls[0][0].input;
+    expect(ContentType).toBe('image/webp');
+    const meta = await sharp(Body).metadata();
+    expect(meta.format).toBe('webp');
+    expect(meta.width).toBe(512);
+    expect(Body.length).toBeLessThan(jpeg.buffer.length);
+  });
+
+  it('rechaza un archivo que no es una imagen decodificable', async () => {
+    const service = makeService();
+    (service as any).client = { send: jest.fn() };
+
+    await expect(
+      service.uploadImage({ mimetype: 'image/png', buffer: Buffer.from('no soy png') } as Express.Multer.File, 'avatars'),
+    ).rejects.toThrow();
   });
 
   it('rechaza mimetypes fuera de la lista', async () => {

@@ -2,14 +2,12 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
+import sharp from 'sharp';
 
-const EXT_BY_MIME: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-};
+const ALLOWED_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
+
+// ponytail: un solo preset porque solo hay avatares; parametrizar cuando exista otro tipo de imagen
+const MAX_SIDE = 512;
 
 @Injectable()
 export class R2Service {
@@ -43,26 +41,38 @@ export class R2Service {
     return this.client !== null;
   }
 
-  /** Sube la imagen y devuelve su URL publica. */
+  /** Redimensiona a webp, sube y devuelve su URL publica. */
   async uploadImage(file: Express.Multer.File, prefix: string): Promise<string> {
     if (!this.client) {
       throw new InternalServerErrorException('El almacenamiento de imagenes no esta configurado');
     }
 
-    const ext = EXT_BY_MIME[file.mimetype];
-    if (!ext) {
+    if (!ALLOWED_MIMES.has(file.mimetype)) {
       throw new InternalServerErrorException('Tipo de imagen no soportado');
     }
 
-    const key = `${prefix}/${randomUUID()}.${ext}`;
+    let body: Buffer;
+    try {
+      // ponytail: el gif animado se aplana al primer frame; nadie pidio avatares animados
+      body = await sharp(file.buffer)
+        .rotate() // respeta la orientacion EXIF antes de descartarla
+        .resize(MAX_SIDE, MAX_SIDE, { fit: 'cover', withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch (err) {
+      this.logger.warn(`Imagen ilegible: ${err instanceof Error ? err.message : err}`);
+      throw new InternalServerErrorException('La imagen no se pudo procesar');
+    }
+
+    const key = `${prefix}/${randomUUID()}.webp`;
 
     try {
       await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: key,
-          Body: file.buffer,
-          ContentType: file.mimetype,
+          Body: body,
+          ContentType: 'image/webp',
           CacheControl: 'public, max-age=31536000, immutable',
         }),
       );

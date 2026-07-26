@@ -25,8 +25,8 @@ export class Appointment {
     @Column({ type: 'int' })
     duration: number;
 
-    // Precio de la cita calculado al momento de creación
-    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+    // Precio de la cita calculado al momento de creación (CLP, entero: sin centavos)
+    @Column({ type: 'int', nullable: true })
     price: number | null;
 
     @Column({

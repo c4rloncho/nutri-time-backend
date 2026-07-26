@@ -78,17 +78,18 @@ export class User {
   })
   role: UserRole;
 
-  // Solo si es NUTRITIONIST - precios por duración de cita
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  // Solo si es NUTRITIONIST - precios por duración de cita.
+  // int y no decimal: el CLP no tiene centavos, y decimal viaja como string ("15000.00") en el JSON.
+  @Column({ type: 'int', nullable: true })
   price15: number | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'int', nullable: true })
   price30: number | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'int', nullable: true })
   price45: number | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'int', nullable: true })
   price60: number | null;
 
   // Solo si es NUTRITIONIST - bloques de horarios
