@@ -64,7 +64,25 @@ export class PatientProgressService {
       });
     }
 
-    return this.goalRepository.save(goal);
+    const saved = await this.goalRepository.save(goal);
+
+    // El peso inicial ES el peso actual del paciente: sin este registro el resumen queda en "--"
+    // y la UI le sigue pidiendo "registra tu primer peso". Solo al crear la meta, no al editarla.
+    const hasEntries = await this.progressRepository.exists({
+      where: { patientId },
+    });
+    if (!hasEntries) {
+      await this.progressRepository.save(
+        this.progressRepository.create({
+          patientId,
+          weight: dto.startWeight,
+          date: new Date(),
+          note: 'Peso inicial',
+        }),
+      );
+    }
+
+    return saved;
   }
 
   async addProgress(patientId: number, dto: CreateProgressDto) {
